@@ -100,6 +100,9 @@
       <li><b>Readability.</b> Merged nearby edits into counted markers, added the Unplaced list and per-globe rotation buttons.</li>
       <li><b>Timeline.</b> Recorded edits by the time they were made and added a replay bar with speeds and keyboard control.</li>
       <li><b>Navigation.</b> Show/hide toggles, search, clickable stats and this page.</li>
+      <li><b>Point styles.</b> A thin heatmap, and paired bars for additions and removals with a small chart in the card.</li>
+      <li><b>Quality of life.</b> Background tabs, reduced motion, catching up after a pause, colour-blind-safe colours and a browser test suite.</li>
+      <li><b>Structure.</b> Split the app into small modules (stream, globe, points, timeline, sidebar, card).</li>
     </ol>
 
     <h2>Run it locally</h2>
@@ -113,7 +116,7 @@ python3 -m http.server 8000</code></pre>
         <pre><code>npx serve .</code></pre></li>
       <li>Open <a href="http://localhost:8000">http://localhost:8000</a>. With <code>npx serve</code>, use the address it prints.</li>
     </ol>
-    <p>Use a local server rather than opening <code>index.html</code> as a file, so the browser treats the page like a normal website.</p>
+    <p>Use a local server rather than opening <code>index.html</code> as a file: the page is built from JavaScript modules, which browsers only load from a server.</p>
     <h3>Trying things without waiting</h3>
     <p>Edits to astronomy articles are rare. To simulate edits to chosen articles (this only reads from Wikipedia and Wikidata), open:</p>
     <pre><code>http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Mars</code></pre>

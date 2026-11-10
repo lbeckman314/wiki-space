@@ -7,7 +7,7 @@ Live, non-bot edits to Wikipedia articles, shown on a 3D globe as they happen. E
 
 ## Run it
 
-It's a static site with no build step. Serve the folder with any web server:
+It's a static site with no build step. Serve the folder with any web server (opening `index.html` directly as a file won't work, because browsers only load JavaScript modules from a server):
 
 ```bash
 python3 -m http.server 8000
@@ -90,8 +90,8 @@ sky   Sun, Moon and planets          → astronomy-engine, position today
       P59 constellation only            → approximate, at the constellation's centre
         │
         ▼
-app.js  globe.gl: ripples (size = edit size), dots that fade over 10 minutes,
-        floating titles, a list of recent edits, a detail card (REST summary + diff link)
+app/    globe.gl: ripples (size = edit size), markers / bars / heatmap that fade over 10 minutes,
+        floating titles, the sidebar list, a detail card (REST summary + diff link), the timeline
 sound.js  optional Web Audio: larger edits play lower notes, panned by longitude
 ```
 
@@ -125,7 +125,14 @@ npm test
 | `index.html` | Page layout; loads globe.gl 2.45.3 from jsDelivr |
 | `style.css` | Styles, including the mobile layout (bottom panel under 760px wide) |
 | `geo.js` | Location resolver: batching, caching, Wikidata fallback chain, rate limiting |
-| `app.js` | Stream, globe layers, ticker, card, stats, controls |
+| `app/main.js` | Start-up: wires the controls, runs the update loops, connects to the stream |
+| `app/core.js` | Shared constants, helpers and state (`state`, `flags`, the timeline's `tl`, `view`) |
+| `app/stream.js` | Live edit stream, catch-up after a pause, placing edits, `simulate()` |
+| `app/globe.js` | The Earth globe: layers, ripples, floating titles, Follow, rotation |
+| `app/points.js` | Clustering, and the markers / bars / heatmap point styles |
+| `app/timeline.js` | Recorded history and the timeline bar |
+| `app/sidebar.js` | Sidebar list, search and filters, stat links, show/hide panels |
+| `app/card.js` | Detail card and its additions/removals chart |
 | `sky.js` | Sky map (a second globe.gl globe) plus the astronomy helpers. Star catalogue and constellation data come from d3-celestial (BSD-3-Clause) |
 | `sound.js` | Sound |
 | `about.html` | About page |
