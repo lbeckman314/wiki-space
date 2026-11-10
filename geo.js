@@ -31,79 +31,160 @@
   ];
 
   const BATCH = 50;
-  const FLUSH_MS = 1200;
+  const GAP_MS = 1000;      // at most one request a second (60/min). Wikimedia's limit is per IP address, across
+                            // all its sites, and measured at roughly 80/min in 2026; other tabs share it too.
+  const MIN_AGE_MS = 1200;  // let a batch collect titles for at least this long before sending it
   const MAX_INFLIGHT = 3;
   const MAX_RETRIES = 3;
+  // Wikimedia asks browser scripts to identify themselves with this header (browsers won't let us set User-Agent).
+  const HEADERS = { 'Api-User-Agent': 'WikiSpace/1.0 (https://liambeckman.com/wiki-space/)' };
 
-  // ---------- small fetch scheduler ----------
-  // Caps concurrent requests, and on HTTP 429 (rate limited) backs off globally:
-  // every request waits out the server's Retry-After (or an exponential delay) before retrying.
-  let inflight = 0;
+  // ---------- request pacing ----------
+  // One shared cooldown: a 429's Retry-After counts down the same window on every Wikimedia site, so after one
+  // 429 there's no point asking another wiki. Requests are spaced GAP_MS apart, so a backlog never goes out
+  // as a burst when the window reopens.
   let cooldownUntil = 0;
-  const waiting = [];
+  let lastSent = 0;
+  let inflight = 0;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  function limitedFetch(url) {
-    return new Promise((resolve, reject) => {
-      const run = async () => {
-        inflight++;
-        try {
-          for (let attempt = 0; ; attempt++) {
-            const wait = cooldownUntil - Date.now();
-            if (wait > 0) await sleep(wait);
-            let r;
-            try {
-              r = await fetch(url);
-            } catch (netErr) {
-              // A rate-limit response without CORS headers reaches us as a network error, so back off and retry it too.
-              if (attempt >= MAX_RETRIES) throw netErr;
-              cooldownUntil = Math.max(cooldownUntil, Date.now() + 2000 * Math.pow(2, attempt));
-              continue;
-            }
-            if (r.ok) { resolve(await r.json()); return; }
-            if (r.status !== 429 && r.status < 500) throw new Error('HTTP ' + r.status);
-            if (attempt >= MAX_RETRIES) throw new Error('HTTP ' + r.status + ' after retries');
-            const retryAfter = Number(r.headers.get('Retry-After')) * 1000;
-            const delay = retryAfter > 0 ? retryAfter : 2000 * Math.pow(2, attempt);
-            cooldownUntil = Math.max(cooldownUntil, Date.now() + delay);
-          }
-        } catch (err) {
-          reject(err);
-        } finally {
-          inflight--;
-          if (waiting.length) waiting.shift()();
-        }
-      };
-      inflight < MAX_INFLIGHT ? run() : waiting.push(run);
+  const turnWait = () => Math.max(cooldownUntil, lastSent + GAP_MS) - Date.now();
+  let gateChain = Promise.resolve();
+  function takeTurn() { // resolves when it's our turn to send; turns are handed out one at a time, in order
+    const p = gateChain.then(async () => {
+      for (let w; (w = turnWait()) > 0;) await sleep(w);
+      lastSent = Date.now();
     });
+    gateChain = p;
+    return p;
+  }
+  function backOff(ms) { cooldownUntil = Math.max(cooldownUntil, Date.now() + ms); }
+
+  // ---------- stats for the API panel ----------
+  const stats = { hosts: new Map(), recent: [], sent: [], rateLimited: 0, last429: null, started: Date.now() };
+  function record(url, status, ms, retryAfter) {
+    const u = new URL(url);
+    const n = (u.searchParams.get('titles') || u.searchParams.get('ids') || '').split('|').filter(Boolean).length;
+    let h = stats.hosts.get(u.host);
+    if (!h) { h = { requests: 0, ok: 0, rateLimited: 0, errors: 0, totalMs: 0, items: 0, sent: [] }; stats.hosts.set(u.host, h); }
+    const now = Date.now();
+    h.requests++; h.totalMs += ms; h.items += n; h.sent.push(now); stats.sent.push(now);
+    if (status === 200) h.ok++;
+    else if (status === 429) { h.rateLimited++; stats.rateLimited++; stats.last429 = { at: now, host: u.host, retryAfter }; }
+    else h.errors++;
+    stats.recent.unshift({ at: now, host: u.host, status, ms, n });
+    if (stats.recent.length > 12) stats.recent.pop();
+  }
+  const lastMinute = (list, now) => { while (list.length && list[0] <= now - 60e3) list.shift(); return list.length; };
+
+  // Fetch JSON. The first attempt's turn was already taken by the pump; retries wait for a turn of their own.
+  async function send(url) {
+    inflight++;
+    try {
+      for (let attempt = 0; ; attempt++) {
+        if (attempt > 0) await takeTurn();
+        let r;
+        const t0 = performance.now();
+        try {
+          r = await fetch(url, { headers: HEADERS });
+        } catch (netErr) {
+          record(url, 'network error', performance.now() - t0);
+          // A rate-limit response without CORS headers reaches us as a network error, so back off and retry it too.
+          if (attempt >= MAX_RETRIES) throw netErr;
+          backOff(2000 * Math.pow(2, attempt));
+          continue;
+        }
+        const retryAfter = Number(r.headers.get('Retry-After')) * 1000;
+        record(url, r.status, performance.now() - t0, retryAfter || null);
+        if (r.ok) return await r.json();
+        if (r.status !== 429 && r.status < 500) throw new Error('HTTP ' + r.status);
+        backOff(retryAfter > 0 ? retryAfter : 2000 * Math.pow(2, attempt));
+        if (attempt >= MAX_RETRIES) throw new Error('HTTP ' + r.status + ' after retries');
+      }
+    } finally {
+      inflight--;
+    }
   }
   const qs = o => Object.entries(o).map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
 
-  // ---------- generic batching queue ----------
-  function makeBatcher(fetchBatch) {
-    const queues = new Map(); // groupKey -> { items: Map(key -> deferred), timer }
-    function flush(group) {
-      const q = queues.get(group);
-      if (!q) return;
-      clearTimeout(q.timer); q.timer = null;
-      const entries = [...q.items.entries()].slice(0, BATCH);
-      entries.forEach(([k]) => q.items.delete(k));
-      if (q.items.size) q.timer = setTimeout(() => flush(group), FLUSH_MS);
-      else queues.delete(group);
-      fetchBatch(group, entries.map(([k]) => k))
-        .then(results => entries.forEach(([k, d]) => d.resolve(results.get(k))))
-        .catch(err => { console.warn('batch failed', group, err); entries.forEach(([, d]) => d.resolve(undefined)); });
+  // ---------- batching queues and the pump ----------
+  // Every batcher (one per wiki for pages, plus Wikidata) adds to these queues. The pump takes one turn at a
+  // time and spends it on the queue that has waited longest, so busy queues keep filling up meanwhile and
+  // each request carries more titles.
+  const queues = new Set(); // { fetchBatch, label, group, items: Map(key -> deferred), since }
+  let pumping = false;
+  function nextQueue(now) {
+    let best = null, soonest = Infinity;
+    for (const q of queues) {
+      const readyAt = q.items.size >= BATCH ? 0 : q.since + MIN_AGE_MS;
+      if (readyAt <= now) { if (!best || q.since < best.since) best = q; }
+      else soonest = Math.min(soonest, readyAt);
     }
+    return { q: best, wait: soonest - now };
+  }
+  async function pump() {
+    if (pumping) return;
+    pumping = true;
+    try {
+      while (queues.size) {
+        if (inflight >= MAX_INFLIGHT) { await sleep(100); continue; }
+        const w = turnWait();
+        if (w > 0) { await sleep(w); continue; }
+        const { q, wait } = nextQueue(Date.now());
+        if (!q) { await sleep(wait); continue; }
+        lastSent = Date.now(); // this is our turn (the gate isn't held: retries queue behind it)
+        const entries = [...q.items.entries()].slice(0, BATCH);
+        entries.forEach(([k]) => q.items.delete(k));
+        if (!q.items.size) queues.delete(q);
+        q.fetchBatch(q.group, entries.map(([k]) => k))
+          .then(results => entries.forEach(([k, d]) => d.resolve(results.get(k))))
+          .catch(err => { console.warn('batch failed', q.group, err); entries.forEach(([, d]) => d.resolve(undefined)); });
+      }
+    } finally {
+      pumping = false;
+    }
+  }
+  function makeBatcher(fetchBatch, label = group => group) {
+    const byGroup = new Map();
     return function enqueue(group, key) {
-      let q = queues.get(group);
-      if (!q) { q = { items: new Map(), timer: null }; queues.set(group, q); }
+      let q = byGroup.get(group);
+      if (!q || !queues.has(q)) {
+        q = { fetchBatch, label: label(group), group, items: new Map(), since: Date.now() };
+        byGroup.set(group, q); queues.add(q);
+      }
       let d = q.items.get(key);
       if (!d) {
         d = {}; d.promise = new Promise(r => (d.resolve = r));
         q.items.set(key, d);
       }
-      if (q.items.size >= BATCH) flush(group);
-      else if (!q.timer) q.timer = setTimeout(() => flush(group), FLUSH_MS);
+      pump();
       return d.promise;
+    };
+  }
+  // For the status line: how long lookups are paused, and how long the oldest waiting lookup has waited.
+  function lookupStatus() {
+    const now = Date.now();
+    let oldest = now;
+    for (const q of queues) oldest = Math.min(oldest, q.since);
+    return { pausedMs: Math.max(0, cooldownUntil - now), behindMs: now - oldest };
+  }
+  // Everything the API panel shows. Plain data, recomputed on each call.
+  function lookupDetails() {
+    const now = Date.now();
+    return {
+      ...lookupStatus(),
+      pacePerMin: Math.round(60e3 / GAP_MS),
+      batchMax: BATCH,
+      sentLastMin: lastMinute(stats.sent, now),
+      inflight,
+      rateLimited: stats.rateLimited,
+      last429: stats.last429,
+      since: stats.started,
+      waiting: [...queues].map(q => ({ label: q.label, items: q.items.size, ageMs: now - q.since })).sort((a, b) => b.ageMs - a.ageMs),
+      hosts: [...stats.hosts].map(([host, h]) => ({
+        host, requests: h.requests, ok: h.ok, rateLimited: h.rateLimited, errors: h.errors, lastMin: lastMinute(h.sent, now),
+        avgMs: h.requests ? Math.round(h.totalMs / h.requests) : 0, perRequest: h.requests ? +(h.items / h.requests).toFixed(1) : 0,
+      })).sort((a, b) => b.requests - a.requests),
+      recent: stats.recent.slice(),
     };
   }
 
@@ -128,7 +209,7 @@
       prop: 'coordinates|pageprops', ppprop: 'wikibase_item', colimit: 'max',
       titles: titles.join('|'),
     });
-    const data = await limitedFetch(url);
+    const data = await send(url);
     const q = data.query || {};
     const norm = new Map((q.normalized || []).map(n => [n.from, n.to]));
     const pages = new Map((q.pages || []).map(p => [p.title, p]));
@@ -148,17 +229,17 @@
   // ---------- step 2: Wikidata entities ----------
   // Items being edited: we only need their claims.
   const fetchItems = makeBatcher(async (_, ids) => {
-    const data = await limitedFetch(WIKIDATA_API + '?' + qs({
+    const data = await send(WIKIDATA_API + '?' + qs({
       action: 'wbgetentities', format: 'json', origin: '*', props: 'claims', ids: ids.join('|'),
     }));
     return new Map(ids.map(id => [id, (data.entities && data.entities[id] && data.entities[id].claims) || null]));
-  });
+  }, () => 'Wikidata: edited items');
 
   // Entities referenced by those items (places, constellations, orbit epochs): coordinates + labels.
   // Cached forever: cities, countries and constellations repeat a lot.
   const placeCache = new Map(); // qid -> Promise<{coord, labels, claims}|null>
   const fetchPlacesBatch = makeBatcher(async (_, ids) => {
-    const data = await limitedFetch(WIKIDATA_API + '?' + qs({
+    const data = await send(WIKIDATA_API + '?' + qs({
       action: 'wbgetentities', format: 'json', origin: '*', props: 'claims|labels',
       ids: ids.join('|'), languages: PLACE_LANGS.join('|'),
     }));
@@ -172,7 +253,7 @@
       out.set(id, { coord: c && !c.offworld ? c : null, labels, claims: e.claims });
     }
     return out;
-  });
+  }, () => 'Wikidata: places');
   // Labels: fetch English plus the languages of the bigger Wikipedias in one go.
   const PLACE_LANGS = ['en', 'de', 'fr', 'es', 'ja', 'ru', 'it', 'zh', 'pt', 'ar', 'pl', 'nl', 'fa', 'uk', 'he', 'sv', 'ko', 'tr', 'id', 'vi'];
   function fetchPlace(qid) {
@@ -303,5 +384,5 @@
     return p;
   }
 
-  window.WikiGeo = { resolveLocation, get cooldownMs() { return Math.max(0, cooldownUntil - Date.now()); } };
+  window.WikiGeo = { resolveLocation, lookupStatus, lookupDetails };
 })();

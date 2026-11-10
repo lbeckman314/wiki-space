@@ -62,6 +62,9 @@ export function initGlobe() {
   world.controls().autoRotate = state.rotate;
   world.controls().autoRotateSpeed = 0.35;
   world.pointOfView({ lat: 25, lng: 10, altitude: 2.4 });
+  // Hold still while the mouse is over the Earth (or a bar, marker or floating title), so things are easy to
+  // hover and click; over empty space it keeps turning. (Touch already stops it: dragging takes over.)
+  watchHover(document.getElementById('globe'), world, '.glabel', on => { state.hovering = on; applyRotation(); });
 
   const resize = () => world.width(wrap.clientWidth).height(wrap.clientHeight);
   new ResizeObserver(resize).observe(wrap);
@@ -117,4 +120,25 @@ export function followTo(item) {
 }
 // Follow right away, ignoring the 1.5 s wait (used when Follow is switched on).
 export function followNow(item) { lastFollow = 0; followTo(item); }
-export function applyRotation() { world.controls().autoRotate = state.rotate && !state.follow && !state.selected; }
+// Calls onChange(true/false) as the mouse moves on or off the globe itself. Uses globe.gl's toGlobeCoords
+// (a raycast), checked at most every 100 ms; points count via onPointHover, and HTML markers via `htmlSelector`.
+export function watchHover(el, globe, htmlSelector, onChange) {
+  let on = false, overPoint = false, last = 0, timer = null, pos = null;
+  const set = v => { if (v !== on) { on = v; onChange(v); } };
+  const check = () => {
+    last = performance.now(); timer = null;
+    if (!pos) return;
+    const r = el.getBoundingClientRect();
+    set(overPoint || !!(pos.target && pos.target.closest(htmlSelector)) || !!globe.toGlobeCoords(pos.x - r.left, pos.y - r.top));
+  };
+  el.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch') return;
+    pos = { x: e.clientX, y: e.clientY, target: e.target };
+    if (performance.now() - last >= 100) check();
+    else if (!timer) timer = setTimeout(check, 100);
+  });
+  el.addEventListener('pointerleave', () => { clearTimeout(timer); timer = null; pos = null; overPoint = false; set(false); });
+  globe.onPointHover(d => { overPoint = !!d; if (overPoint) set(true); });
+}
+
+export function applyRotation() { world.controls().autoRotate = state.rotate && !state.follow && !state.selected && !state.hovering; }

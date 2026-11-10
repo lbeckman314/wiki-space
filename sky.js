@@ -291,7 +291,11 @@
     lastFollow = Date.now();
     sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: sky.pointOfView().altitude }, glide(1000));
   }
-  function applyRotation() { sky.controls().autoRotate = rotate && !follow && !selected; }
+  // Rotation also pauses while the mouse is over the sky sphere or a marker (not the space around it).
+  // main.js wires this up with watchHover() from globe.js, through setHovering().
+  let hovering = false;
+  function setHovering(on) { hovering = on; applyRotation(); }
+  function applyRotation() { sky.controls().autoRotate = rotate && !follow && !selected && !hovering; }
   function setFollow(on) {
     follow = on;
     applyRotation();
@@ -312,7 +316,7 @@
   window.WikiSky = {
     planetPosition, orbitPosition, parseEpoch, constellationCentre, raToLng,
     setReducedMotion(on) { reduceMotion = !!on; if (on) rings = []; },
-    add, pulse, setCutoff, focus, setFollow, setRotate, starfield,
+    add, pulse, setCutoff, focus, setFollow, setRotate, setHovering, starfield,
     set onSelect(fn) { onSelect = fn; },
     globe: sky,
   };

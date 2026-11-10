@@ -35,8 +35,20 @@ export function fmtAgo(ms) {
   return `${Math.floor(m / 60)}h ${pad(m % 60)}m ago`;
 }
 // Browser storage can be unavailable (private mode, blocked), so every access is guarded.
-export function load(key, fallback) { try { const v = localStorage.getItem(key); return v == null ? fallback : v; } catch (e) { return fallback; } }
-export function save(key, value) { try { localStorage.setItem(key, value); } catch (e) { /* not saved */ } }
+// Settings in the address (see "Settings in the address" in CLAUDE.md). The address is the only place settings
+// are kept: a plain address always opens DEFAULTS. Changing a setting rewrites the address, leaving out values
+// that match the default, so the current address is always a link to what's on screen.
+export function urlParam(key, allowed) {
+  const v = new URLSearchParams(location.search).get(key);
+  return allowed.includes(v) ? v : null;
+}
+export function setUrlParam(key, value, fallback) {
+  try {
+    const u = new URL(location.href);
+    value === fallback ? u.searchParams.delete(key) : u.searchParams.set(key, value);
+    if (u.href !== location.href) history.replaceState(history.state, '', u);
+  } catch (e) { /* not updated */ }
+}
 
 // ---------------- reduced motion ----------------
 // Follow the system setting: camera moves jump instead of gliding, ripples are skipped, and the globes
@@ -49,14 +61,28 @@ export const glide = ms => (motion.reduce ? 0 : ms);
 const FRESH_MS = 60e3;
 export const isFresh = item => Date.now() - item.time < FRESH_MS;
 
+// ---------------- defaults ----------------
+// What the page shows with nothing saved and nothing in the address. Each key is also the address parameter
+// (?sidebar=0, ?sky=1, ?timeline=1, ?points=markers, ?height=bytes, ?wikis=en); values equal to these are
+// left out of the address. Change a default here and nowhere else.
+export const DEFAULTS = {
+  sidebar: true,   // panels: shown or hidden
+  sky: false,
+  timeline: false,
+  points: 'bars',  // 'bars', 'markers' or 'heatmap'
+  height: 'edits', // bar height: 'edits' or 'bytes'
+  wikis: 'en',    // 'top' (top 20 languages), 'en' or 'all'
+};
+
 // ---------------- shared state ----------------
 export const state = {
-  mode: $('wiki-mode').value,
+  mode: DEFAULTS.wikis,
   showApprox: true,
-  pointStyle: 'markers', // or 'heatmap' or 'bars'
-  barMetric: 'count',    // bar height: 'count' (edits) or 'bytes' (bytes changed, log scale)
+  pointStyle: DEFAULTS.points, // 'bars', 'markers' or 'heatmap'
+  barMetric: DEFAULTS.height === 'bytes' ? 'bytes' : 'count', // bar height: 'count' (edits) or 'bytes' (bytes changed, log scale)
   follow: false,
   rotate: !motion.reduce,
+  hovering: false,       // the mouse is over the Earth: rotation pauses so things hold still to be clicked
   paused: false,
   sound: false,
   unplacedList: [], // edits that could not be placed, oldest first
@@ -85,7 +111,7 @@ export const tl = { live: true, playing: true, t: Date.now(), speed: 60, draggin
 export function clockNow() { return tl.live ? Date.now() : tl.t; }
 
 // Which panels are shown (see sidebar.js).
-export const view = { sidebar: true, sky: true, timeline: true };
+export const view = { sidebar: DEFAULTS.sidebar, sky: DEFAULTS.sky, timeline: DEFAULTS.timeline };
 
 // First index in state.history whose edit time is after t (history is ordered by time).
 export function upperBound(t) {

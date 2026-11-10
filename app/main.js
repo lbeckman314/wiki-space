@@ -1,18 +1,20 @@
 // Start-up: wires the controls, runs the update loops and connects to the live stream.
 // Modules only declare things when they load; everything that touches the page starts here, in order.
-import { $, RING_LIFE, LABEL_LIFE, motionQuery, motion, state, flags, tl, view, load, save } from './core.js';
-import { world, initGlobe, applyRotation, followNow } from './globe.js';
+import { $, RING_LIFE, LABEL_LIFE, motionQuery, motion, state, flags, tl, view, DEFAULTS, urlParam, setUrlParam } from './core.js';
+import { world, initGlobe, applyRotation, followNow, watchHover } from './globe.js';
 import { initPoints, buildGroups, setPointStyle, zoomChanged } from './points.js';
 import { initTimeline, computeWindow } from './timeline.js';
 import { connect, disconnect, resume, streamState, setStatus, simulate } from './stream.js';
 import { initSidebar } from './sidebar.js';
 import { initCard, select } from './card.js';
+import { initApiPanel } from './apipanel.js';
 
 initGlobe();
 initPoints();
 initSidebar();
 initCard();
 initTimeline();
+initApiPanel();
 
 // ---------------- update loops ----------------
 // Globe layers: at most four updates a second, and only for what changed.
@@ -50,11 +52,25 @@ setInterval(() => {
   $('n-unplaced').textContent = state.unplaced.toLocaleString();
   const s = streamState();
   if (s === 'catching-up') setStatus('', 'catching up on missed edits…');
-  else if (s === 'open') WikiGeo.cooldownMs > 0 ? setStatus('', 'live · lookups rate-limited, slowing down') : setStatus('live', 'live from Wikipedia');
+  else if (s === 'open') {
+    const paused = pausedText();
+    paused ? setStatus('', 'live · ' + paused) : setStatus('live', 'live from Wikipedia');
+  }
 }, 1000);
 
+// Short waits are routine; only mention ones people would notice.
+function pausedText() {
+  const { pausedMs, behindMs } = WikiGeo.lookupStatus();
+  if (pausedMs > 10e3) return `Wikipedia asked us to wait · placing edits again in ${Math.ceil(pausedMs / 1000)} s`;
+  if (behindMs > 20e3) return `placing edits about ${Math.round(behindMs / 1000)} s late`;
+  return '';
+}
+
 // ---------------- controls ----------------
-$('wiki-mode').onchange = e => { state.mode = e.target.value; };
+// Which wikis: ?wikis=en|top|all (not saved in the browser).
+state.mode = urlParam('wikis', ['en', 'top', 'all']) || DEFAULTS.wikis;
+$('wiki-mode').value = state.mode;
+$('wiki-mode').onchange = e => { state.mode = e.target.value; setUrlParam('wikis', state.mode, DEFAULTS.wikis); };
 $('t-approx').onchange = e => { state.showApprox = e.target.checked; buildGroups(); };
 
 // Rotation pause/play buttons, one on each globe.
@@ -69,6 +85,7 @@ function setRotateButton(btn, on) {
 }
 let skyRotate = !motion.reduce;
 WikiSky.setRotate(skyRotate);
+watchHover($('sky'), WikiSky.globe, '.skym', on => WikiSky.setHovering(on)); // hold still over the sky sphere
 setRotateButton($('rot-earth'), state.rotate);
 setRotateButton($('rot-sky'), skyRotate);
 $('rot-earth').onclick = () => {
@@ -95,16 +112,20 @@ $('t-sound').onchange = e => {
   state.sound ? WikiSound.enable() : WikiSound.disable();
 };
 
-// Point style and bar height, remembered per browser.
-$('point-style').onchange = e => setPointStyle(e.target.value);
-state.barMetric = load('wikiSpace.barMetric', 'count') === 'bytes' ? 'bytes' : 'count';
-$('bar-metric').value = state.barMetric;
-$('bar-metric').onchange = e => {
-  state.barMetric = e.target.value === 'bytes' ? 'bytes' : 'count';
-  buildGroups();
-  save('wikiSpace.barMetric', state.barMetric);
-};
-setPointStyle(load('wikiSpace.pointStyle', 'markers'));
+// Point style and bar height: button groups in the legend, kept in the address.
+$('point-style').addEventListener('click', e => { const b = e.target.closest('button[data-style]'); if (b) setPointStyle(b.dataset.style); });
+function setBarMetric(metric) {
+  state.barMetric = metric === 'bytes' ? 'bytes' : 'count';
+  for (const b of $('bar-metric').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.metric === state.barMetric));
+  setUrlParam('height', state.barMetric === 'bytes' ? 'bytes' : 'edits', DEFAULTS.height); // ?height=bytes
+}
+$('bar-metric').addEventListener('click', e => {
+  const b = e.target.closest('button[data-metric]');
+  if (b) { setBarMetric(b.dataset.metric); buildGroups(); }
+});
+// From the address, else DEFAULTS.
+setBarMetric(urlParam('height', ['edits', 'bytes']) || DEFAULTS.height);
+setPointStyle(urlParam('points', ['markers', 'bars', 'heatmap']) || DEFAULTS.points); // ?points=markers
 
 WikiSky.onSelect = item => select(item);
 
@@ -135,4 +156,8 @@ const sim = new URLSearchParams(location.search).get('simulate');
 if (sim) sim.split('|').forEach((t, i) => setTimeout(() => simulate(t.trim()), 1500 + i * 700));
 
 connect();
+// Turn animations on once the starting layout has been drawn (the timer covers tabs opened in the background).
+const booted = () => document.body.classList.remove('booting');
+requestAnimationFrame(() => requestAnimationFrame(booted));
+setTimeout(booted, 1000);
 window.__wikiSpace = { state, world, simulate }; // handy for debugging in the console, and used by the tests

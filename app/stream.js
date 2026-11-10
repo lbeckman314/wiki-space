@@ -4,6 +4,14 @@ import { record } from './timeline.js';
 import { announce } from './globe.js';
 
 let es = null;
+// For the API panel: when the stream connected, how often it dropped, and events per minute.
+const streamStats = { connectedAt: null, drops: 0, events: [], kept: 0 };
+export function streamDetails() {
+  const cutoff = Date.now() - 60e3;
+  while (streamStats.events.length && streamStats.events[0] <= cutoff) streamStats.events.shift();
+  return { state: streamState(), paused: !es, connectedAt: streamStats.connectedAt, drops: streamStats.drops,
+    eventsLastMin: streamStats.events.length, url: STREAM };
+}
 export function setStatus(kind, text) {
   $('status-dot').className = 'dot ' + kind;
   $('status-text').textContent = text;
@@ -19,8 +27,8 @@ export function connect(since) {
   catchingUp = !!since;
   setStatus('', catchingUp ? 'catching up on missed edits…' : 'connecting…');
   es = new EventSource(since ? `${STREAM}?since=${encodeURIComponent(new Date(since).toISOString())}` : STREAM);
-  es.onopen = () => { if (!catchingUp) setStatus('live', 'live from Wikipedia'); };
-  es.onerror = () => setStatus('down', 'reconnecting…'); // EventSource retries on its own
+  es.onopen = () => { streamStats.connectedAt = Date.now(); if (!catchingUp) setStatus('live', 'live from Wikipedia'); };
+  es.onerror = () => { streamStats.drops++; setStatus('down', 'reconnecting…'); }; // EventSource retries on its own
   es.onmessage = onEvent;
 }
 export function disconnect() { if (es) es.close(); es = null; pausedAt = Date.now(); setStatus('down', 'paused'); }
@@ -48,6 +56,7 @@ function accept(d) {
 function onEvent(e) {
   let d;
   try { d = JSON.parse(e.data); } catch { return; }
+  streamStats.events.push(Date.now());
   const id = d.meta && d.meta.id;
   if (id) {
     if (seenIds.has(id)) return; // already seen (catch-up overlaps the moment of pausing)

@@ -7,20 +7,17 @@
   <meta name="description" content="Live edits to Wikipedia articles, placed on a 3D globe and a sky map using article coordinates and Wikidata.">
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="booting">
   <div id="app">
     <main id="globe-wrap">
       <div id="globe"></div>
 
       <header id="hud">
-        <h1>Wiki Space</h1>
-        <div id="status"><span class="dot" id="status-dot"></span><span id="status-text">connecting…</span></div>
-        <nav id="view" aria-label="Show or hide panels">
-          <button id="v-sidebar" aria-pressed="true" title="Show or hide the sidebar">Sidebar</button>
-          <button id="v-sky" aria-pressed="true" title="Show or hide the sky map">Sky map</button>
-          <button id="v-timeline" aria-pressed="true" title="Show or hide the timeline">Timeline</button>
-          <a href="about.html">About</a>
-        </nav>
+        <div class="hud-title"><h1>Wiki Space</h1><a id="about-link" href="about.html">About</a></div>
+        <button id="status" aria-expanded="false" aria-controls="api-panel" title="Show the edit stream and lookup details">
+          <span class="dot" id="status-dot"></span><span id="status-text">connecting…</span><span class="caret" aria-hidden="true">▾</span>
+        </button>
+        <section id="api-panel" aria-label="Edit stream and lookups" hidden></section>
       </header>
 
       <div id="stats">
@@ -35,11 +32,11 @@
         <div id="sky"></div>
         <div class="sky-head"><span>✦ Sky</span><span id="sky-count"></span>
           <button id="rot-sky" class="icon-btn" title="Pause rotation" aria-pressed="false"><svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg></button>
-          <button id="sky-expand" class="icon-btn" aria-label="Enlarge sky map">⤢</button></div>
+          <button id="sky-expand" class="icon-btn" aria-label="Enlarge sky map">⤢</button>
+          <button id="toggle-sky" class="icon-btn toggle" aria-controls="sky" aria-expanded="true"><svg class="ico chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button></div>
         <p id="sky-empty">Waiting for an edit to an astronomy article…</p>
       </section>
 
-      <button id="rot-earth" class="rot-btn" title="Pause rotation" aria-pressed="false"><svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg><span class="lbl">Pause rotation</span></button>
 
       <section id="timeline" aria-label="Timeline">
         <button id="tl-start" class="tl-btn" title="Jump to the start of the recording" aria-label="Jump to start">
@@ -63,8 +60,21 @@
         </div>
         <button id="tl-live" class="tl-live on" title="Return to the live stream">Live</button>
       </section>
+      <button id="toggle-timeline" class="tl-btn toggle" aria-controls="timeline" aria-expanded="true"><svg class="ico chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button>
 
+      <div id="corner">
       <section id="legend" aria-label="Legend">
+        <div class="lg-pick" id="point-style" role="group" aria-label="Show edits as">
+          <button data-style="markers" aria-pressed="false" title="One numbered marker per group of nearby edits">Markers</button>
+          <button data-style="bars" aria-pressed="true" title="Additions and removals as two bars">Bars</button>
+          <button data-style="heatmap" aria-pressed="false" title="Where edits are densest">Heatmap</button>
+        </div>
+        <div class="lg-pick" id="bar-metric" role="group" aria-label="Bar height">
+          <span>Height</span>
+          <button data-metric="count" aria-pressed="true" title="Number of edits">Edits</button>
+          <button data-metric="bytes" aria-pressed="false" title="Bytes changed">Bytes</button>
+        </div>
+        <div class="lg-sep lg-pick-sep"></div>
         <div class="lg-row"><i class="sw" style="--c:var(--add)"></i>Content added</div>
         <div class="lg-row"><i class="sw" style="--c:var(--remove)"></i>Content removed</div>
         <div class="lg-row"><i class="sw" style="--c:var(--new)"></i>New article</div>
@@ -77,28 +87,18 @@
         <div class="lg-row lg-bars"><i class="lg-bar" style="--c:#e2603f"></i>Removals (right bar)</div>
         <div class="lg-row lg-heat"><span class="lg-heatbar"></span>Heatmap: more, newer edits are warmer</div>
       </section>
+      <button id="rot-earth" class="rot-btn" title="Pause rotation" aria-pressed="false"><svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg><span class="lbl">Pause rotation</span></button>
+      </div>
     </main>
 
     <aside id="panel">
+      <button id="toggle-sidebar" class="icon-btn toggle" aria-controls="panel" aria-expanded="true"><svg class="ico chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button>
       <div id="controls">
         <label>Wikis
           <select id="wiki-mode">
             <option value="en">English Wikipedia</option>
-            <option value="top" selected>Top 20 languages</option>
+            <option value="top">Top 20 languages</option>
             <option value="all">All Wikipedias</option>
-          </select>
-        </label>
-        <label>Points
-          <select id="point-style">
-            <option value="markers">Numbered markers</option>
-            <option value="heatmap">Heatmap</option>
-            <option value="bars">Bars: additions vs removals</option>
-          </select>
-        </label>
-        <label id="bar-metric-wrap">Bar height
-          <select id="bar-metric">
-            <option value="count">Number of edits</option>
-            <option value="bytes">Bytes changed</option>
           </select>
         </label>
         <div class="toggles">

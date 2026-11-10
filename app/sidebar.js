@@ -1,5 +1,5 @@
 // Sidebar list (tabs, filters, search), the stats links that filter it, and show/hide panels.
-import { $, MAX_TICKER, COLORS, esc, rgba, fmtDelta, state, flags, view, load, save } from './core.js';
+import { $, MAX_TICKER, COLORS, esc, rgba, fmtDelta, state, flags, view, DEFAULTS, urlParam, setUrlParam } from './core.js';
 import { select } from './card.js';
 
 // The list is rebuilt from the data (state.history / state.unplacedList), newest first, so search and
@@ -65,13 +65,16 @@ function setFilter(name) {
 }
 
 // ---------------- show / hide panels ----------------
-const VIEW_KEY = 'wikiSpace.view';
+const VIEW_NAMES = { sidebar: 'the sidebar', sky: 'the sky map', timeline: 'the timeline' };
 export function setView(part, on) {
   view[part] = on;
   document.body.classList.toggle('hide-' + part, !on);
-  $('v-' + part).setAttribute('aria-pressed', String(on));
+  const btn = $('toggle-' + part); // one chevron per panel; it stays put and turns to point where the panel goes
+  btn.setAttribute('aria-expanded', String(on));
+  btn.title = (on ? 'Hide ' : 'Show ') + VIEW_NAMES[part];
+  btn.setAttribute('aria-label', btn.title);
   if (part === 'sky') on ? WikiSky.globe.resumeAnimation() : WikiSky.globe.pauseAnimation(); // no drawing while hidden
-  save(VIEW_KEY, JSON.stringify(view));
+  setUrlParam(part, on ? '1' : '0', DEFAULTS[part] ? '1' : '0'); // ?sidebar=0, ?sky=1, ?timeline=1
 }
 
 export function initSidebar() {
@@ -103,10 +106,11 @@ export function initSidebar() {
     };
   });
 
-  // Panels: restore the saved choice, then wire the toggles.
-  try { Object.assign(view, JSON.parse(load(VIEW_KEY, '{}'))); } catch (e) { /* defaults */ }
+  // Panels: from the address, else DEFAULTS (view starts as DEFAULTS), then wire the chevrons.
   for (const part of Object.keys(view)) {
-    $('v-' + part).onclick = () => setView(part, !view[part]);
+    const fromUrl = urlParam(part, ['0', '1']);
+    if (fromUrl) view[part] = fromUrl === '1';
+    $('toggle-' + part).onclick = () => setView(part, !view[part]);
     setView(part, view[part]);
   }
 }

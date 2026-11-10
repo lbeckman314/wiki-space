@@ -79,16 +79,29 @@
     </ul>
     <h3>Controls</h3>
     <ul>
-      <li><b>Sidebar, Sky map, Timeline</b> buttons under the title show or hide each panel. Your choice is remembered in this browser.</li>
+      <li><b>Hide panels</b> with the chevron in the corner of the sidebar, sky map or timeline; the chevron stays where it is, so click it again to bring the panel back. The sky map starts folded up and the timeline starts hidden.</li>
+      <li>Click the <b>status line</b> under the title (“live from Wikipedia”) for details: the edit stream, how fast the page is
+        looking up places, whether Wikipedia has asked it to wait, what's waiting, and each server it talks to.</li>
       <li>Click the <b>placed, exact, approximate</b> or <b>in the sky</b> numbers to list those edits in the sidebar.</li>
       <li><b>Search</b> finds edits recorded this session by title, place, language or editor. Combine it with the filters and the Placed and Unplaced tabs.</li>
-      <li><b>Points</b> switches between numbered markers, bars (additions on the left in teal, removals on the right in orange-red) and a thin heatmap. In heatmap mode, click the globe to open the newest edit near that spot.</li>
+      <li><b>Markers, Bars, Heatmap</b> at the top of the legend switch between numbered markers, bars (additions on the left in teal, removals on the right in orange-red) and a thin heatmap. In heatmap mode, click the globe to open the newest edit near that spot.</li>
       <li><b>Pause stream</b> disconnects from the live feed; resuming catches up on up to 15 minutes of missed edits.</li>
       <li>With your system's <b>reduce motion</b> setting on, the globes don't rotate on their own, ripples are skipped and camera moves jump instead of gliding.</li>
-      <li><b>Follow</b> turns each globe to the newest edit. <b>Pause rotation</b> buttons stop each globe spinning.</li>
+      <li><b>Follow</b> turns each globe to the newest edit. <b>Pause rotation</b> buttons stop each globe spinning. Each globe also holds still while your mouse is over it (or one of its bars, markers or titles), so they are easy to point at; over the space around it, it keeps turning.</li>
       <li>On the timeline, drag the track or use <kbd>←</kbd> <kbd>→</kbd> (1 minute), <kbd>Shift</kbd> + arrows (10 minutes),
         <kbd>Home</kbd> (start) and <kbd>End</kbd> (live).</li>
     </ul>
+
+    <h3>Sharing your view</h3>
+    <p>Panels, the point style, the bar height and which wikis you watch are kept in the address, so copying it shares
+      what you see, and bookmarking it keeps your view. Nothing is stored in your browser, so the plain address always opens
+      the default view. Settings left at their defaults don't appear in the address. You can also write a link by hand:</p>
+    <ul>
+      <li><code>?sky=1</code> opens the sky map; <code>?timeline=1</code> shows the timeline; <code>?sidebar=0</code> hides the sidebar.</li>
+      <li><code>?points=markers</code> or <code>?points=heatmap</code> (bars are the default); <code>?height=bytes</code> sizes bars by bytes changed.</li>
+      <li><code>?wikis=en</code> for English Wikipedia only, or <code>?wikis=all</code> for every Wikipedia.</li>
+    </ul>
+    <p>For example: <a href="./?sky=1&amp;points=heatmap&amp;wikis=en"><code>?sky=1&amp;points=heatmap&amp;wikis=en</code></a></p>
 
     <h2>How we built it</h2>
     <ol class="history">
@@ -124,8 +137,10 @@ python3 -m http.server 8000</code></pre>
     <p>To fill the timeline with 30 minutes of simulated history, run this in the browser console:</p>
     <pre><code>for (let i = 0; i &lt; 60; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })</code></pre>
     <h3>If lookups stall</h3>
-    <p>When Wikimedia rate-limits location lookups, the status line says so and the page waits before retrying. This mostly happens on
-      shared networks such as cloud machines. New edits keep arriving and are placed once lookups resume.</p>
+    <p>Wikimedia limits how many requests each IP address can make across all its sites, and every open tab of this page (plus your
+      own Wikipedia browsing) shares that limit. The page sends at most one lookup a second, packing many articles into each one.
+      If it falls behind or Wikipedia asks it to wait, the status line says so. New edits keep arriving and are placed once lookups
+      catch up. Closing extra tabs of the page helps, and so does avoiding shared networks such as cloud machines.</p>
 
     <h2>Deploy it</h2>
     <p>Any static host works, because the site is plain files:</p>

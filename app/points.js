@@ -1,7 +1,7 @@
 // How edits on the Earth are drawn: clustered markers (default), bars, or a heatmap.
 // Functions the globe's layers call (markerRadius, groupTooltip, barTooltip, heatBandwidth, heatColor) are
 // function declarations, so they exist as soon as the module graph is linked.
-import { $, POINT_LIFE, esc, fmtDelta, state, clockNow, save } from './core.js';
+import { $, POINT_LIFE, esc, fmtDelta, state, clockNow, setUrlParam, DEFAULTS } from './core.js';
 import { world, wrap } from './globe.js';
 import { select } from './card.js';
 
@@ -81,9 +81,9 @@ function buildBars() {
   const floor = state.barMetric === 'bytes' ? barScale(5000) : 6; // the scale never tops out below this
   const top = Math.max(floor, ...bars.map(b => barScale(b.v)));
   const zoom = Math.min(1, clusterAlt / 2.4);
-  const r = 0.095 * clusterAlt; // bar radius in degrees: constant on screen, like the markers
+  const r = 0.17 * clusterAlt; // bar radius in degrees: constant on screen, like the markers, and wide enough to hover
   for (const b of bars) {
-    const off = (r * 1.25) / Math.max(0.2, Math.cos((b.group.lat * Math.PI) / 180));
+    const off = (r * 1.1) / Math.max(0.2, Math.cos((b.group.lat * Math.PI) / 180)); // a narrow gap between the pair
     b.lat = b.group.lat;
     b.lng = b.group.lng + (b.side === 'add' ? -off : off);
     b.r = r;
@@ -156,15 +156,15 @@ function scheduleHeatmap(force) {
 }
 
 export function setPointStyle(style) {
-  state.pointStyle = ['heatmap', 'bars'].includes(style) ? style : 'markers';
+  state.pointStyle = ['markers', 'heatmap', 'bars'].includes(style) ? style : DEFAULTS.points;
   document.body.classList.toggle('points-heatmap', state.pointStyle === 'heatmap');
   document.body.classList.toggle('points-bars', state.pointStyle === 'bars');
-  $('point-style').value = state.pointStyle;
+  for (const b of $('point-style').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.style === state.pointStyle));
   if (state.pointStyle !== 'heatmap') world.heatmapsData([]);
   heatSig = '';
   buildGroups();
   if (state.pointStyle === 'heatmap') scheduleHeatmap(true);
-  save('wikiSpace.pointStyle', state.pointStyle);
+  setUrlParam('points', state.pointStyle, DEFAULTS.points);
 }
 
 // The heatmap has no click events, so a click (not a drag) on the Earth in heatmap mode opens the
