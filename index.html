@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wiki Globe</title>
+  <meta name="description" content="Live edits to Wikipedia articles, placed on a 3D globe and a sky map using article coordinates and Wikidata.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <main id="globe-wrap">
+      <div id="globe"></div>
+
+      <header id="hud">
+        <h1>Wiki Globe</h1>
+        <div id="status"><span class="dot" id="status-dot"></span><span id="status-text">connecting…</span></div>
+      </header>
+
+      <div id="stats">
+        <div><b id="s-rate">0</b><span>article edits / min</span></div>
+        <div><b id="s-placed">0%</b><span>placed</span></div>
+        <div><b id="s-exact">0</b><span>exact</span></div>
+        <div><b id="s-approx">0</b><span>approximate</span></div>
+        <div><b id="s-sky">0</b><span>in the sky</span></div>
+      </div>
+
+      <section id="sky-wrap" aria-label="Sky map">
+        <div id="sky"></div>
+        <div class="sky-head"><span>✦ Sky</span><span id="sky-count"></span>
+          <button id="rot-sky" class="icon-btn" title="Pause rotation" aria-pressed="false"><svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg></button>
+          <button id="sky-expand" class="icon-btn" aria-label="Enlarge sky map">⤢</button></div>
+        <p id="sky-empty">Waiting for an edit to an astronomy article…</p>
+      </section>
+
+      <button id="rot-earth" class="rot-btn" title="Pause rotation" aria-pressed="false"><svg class="ico" viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8" rx=".6"/><rect x="7" y="2" width="2.5" height="8" rx=".6"/></svg><span class="lbl">Pause rotation</span></button>
+
+      <section id="timeline" aria-label="Timeline">
+        <button id="tl-start" class="tl-btn" title="Jump to the start of the recording" aria-label="Jump to start">
+          <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="2" width="1.8" height="8" rx=".5"/><path d="M10 2.3v7.4c0 .5-.5.7-.9.5L4 6.5c-.4-.3-.4-.7 0-1l5.1-3.7c.4-.3.9 0 .9.5z"/></svg>
+        </button>
+        <button id="tl-play" class="tl-btn" title="Pause" aria-label="Pause"><svg viewBox="0 0 12 12" aria-hidden="true"></svg></button>
+        <select id="tl-speed" title="Playback speed" aria-label="Playback speed">
+          <option value="1">1×</option>
+          <option value="10">10×</option>
+          <option value="60" selected>60×</option>
+          <option value="600">600×</option>
+          <option value="3600">3600×</option>
+        </select>
+        <div class="tl-mid">
+          <div id="tl-time">Live</div>
+          <div id="tl-track" role="slider" tabindex="0" aria-label="Playhead (arrow keys: ±1 minute, Shift: ±10 minutes)">
+            <canvas id="tl-hist"></canvas>
+            <div id="tl-played"></div>
+            <div id="tl-head"></div>
+          </div>
+        </div>
+        <button id="tl-live" class="tl-live on" title="Return to the live stream">Live</button>
+      </section>
+
+      <section id="legend" aria-label="Legend">
+        <div class="lg-row"><i class="sw" style="--c:var(--add)"></i>Content added</div>
+        <div class="lg-row"><i class="sw" style="--c:var(--remove)"></i>Content removed</div>
+        <div class="lg-row"><i class="sw" style="--c:var(--new)"></i>New article</div>
+        <div class="lg-sep"></div>
+        <div class="lg-row"><i class="sw solid"></i>Exact (article / Wikidata coordinates)</div>
+        <div class="lg-row"><i class="sw soft"></i>Approximate (related place on Wikidata)</div>
+        <div class="lg-row"><span class="lg-star">✦</span>Sky: RA/Dec, orbit or constellation</div>
+        <div class="lg-row"><span class="lg-count">3</span>Several edits close together</div>
+      </section>
+    </main>
+
+    <aside id="panel">
+      <div id="controls">
+        <label>Wikis
+          <select id="wiki-mode">
+            <option value="en">English Wikipedia</option>
+            <option value="top" selected>Top 20 languages</option>
+            <option value="all">All Wikipedias</option>
+          </select>
+        </label>
+        <div class="toggles">
+          <label><input type="checkbox" id="t-approx" checked> Approximate</label>
+          <label><input type="checkbox" id="t-sound"> Sound</label>
+          <label title="Turn each globe to the newest edit"><input type="checkbox" id="t-follow"> Follow</label>
+          <label title="Disconnect from the live edit stream"><input type="checkbox" id="t-pause"> Pause stream</label>
+        </div>
+      </div>
+
+      <article id="card" hidden>
+        <button id="card-close" aria-label="Close">×</button>
+        <img id="card-thumb" alt="" hidden>
+        <div class="card-meta"><span id="card-lang" class="badge"></span><span id="card-time"></span></div>
+        <h2><a id="card-title" target="_blank" rel="noopener"></a></h2>
+        <p id="card-where" class="where"></p>
+        <p id="card-extract" class="extract"></p>
+        <dl>
+          <dt>Change</dt><dd id="card-delta"></dd>
+          <dt>Editor</dt><dd><a id="card-user" target="_blank" rel="noopener"></a></dd>
+          <dt>Summary</dt><dd id="card-comment"></dd>
+        </dl>
+        <div class="card-links"><a id="card-diff" target="_blank" rel="noopener">View diff ↗</a></div>
+        <section id="card-more" hidden></section>
+      </article>
+
+      <div class="tabs" role="tablist">
+        <button id="tab-placed" role="tab" aria-selected="true">Placed <span id="n-placed">0</span></button>
+        <button id="tab-unplaced" role="tab" aria-selected="false" title="Edits to articles with no location">Unplaced <span id="n-unplaced">0</span></button>
+      </div>
+      <ol id="ticker"></ol>
+      <ol id="unplaced" hidden></ol>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.45.3/dist/globe.gl.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+  <script src="sky.js"></script>
+  <script src="geo.js"></script>
+  <script src="sound.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
