@@ -7,10 +7,14 @@ Live, non-bot edits to Wikipedia articles, shown on a 3D globe as they happen. E
 
 ## Run it
 
-It's a static site with no build step. Serve the folder with any web server (opening `index.html` directly as a file won't work, because browsers only load JavaScript modules from a server):
+It's a static site with no build step. Get the code, then serve the folder with any web server (opening `index.html` directly as a file won't work, because browsers only load JavaScript modules from a server):
 
 ```bash
-python3 -m http.server 8000
+git clone https://github.com/lbeckman314/wiki-space.git
+```
+
+```bash
+cd wiki-space && python3 -m http.server 8000
 ```
 
 Then open http://localhost:8000.
@@ -21,11 +25,11 @@ Astronomy edits are rare, so to see the sky map straight away you can simulate e
 http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Ceres (dwarf planet)|Mars|Halley's Comet
 ```
 
-You can also run `__wikiGlobe.simulate('Orion Nebula')` in the browser console. Pass a location to skip the lookup entirely, which is handy for testing without any network requests:
+You can also run `__wikiSpace.simulate('Orion Nebula')` in the browser console. Pass a location to skip the lookup entirely, which is handy for testing without any network requests:
 
 ```js
-__wikiGlobe.simulate('Test edit', 'en', { lat: 48.86, lng: 2.29 })
-__wikiGlobe.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
+__wikiSpace.simulate('Test edit', 'en', { lat: 48.86, lng: 2.29 })
+__wikiSpace.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 ```
 
 ## Controls
@@ -58,7 +62,7 @@ The recording lasts only as long as the page is open. For a full day or week, a 
 To try the timeline without waiting, backdate simulated edits in the console:
 
 ```js
-for (let i = 0; i < 60; i++) __wikiGlobe.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })
+for (let i = 0; i < 60; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })
 ```
 
 ### Markers

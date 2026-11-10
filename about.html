@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>About Wiki Globe</title>
-  <meta name="description" content="How Wiki Globe works, how it was built, and how to run it yourself.">
+  <title>About Wiki Space</title>
+  <meta name="description" content="How Wiki Space works, how it was built, and how to run it yourself.">
   <link rel="stylesheet" href="style.css">
   <style>
     html, body { overflow: auto; height: auto; }
@@ -43,7 +43,7 @@
 <body>
   <main class="about">
     <a class="back" href="index.html">← Back to the globe</a>
-    <h1>About Wiki Globe</h1>
+    <h1>About Wiki Space</h1>
     <p class="lede">Live edits to Wikipedia articles, placed on a 3D globe as they happen. Edits to astronomy articles appear on a sky map.
       Inspired by Hatnote's <a href="https://listen.hatnote.com/">Listen to Wikipedia</a>.</p>
 
@@ -106,11 +106,12 @@
     </ol>
 
     <h2>Run it locally</h2>
-    <p>Wiki Globe is a static site with no build step and nothing to install. You need a browser and any local web server.</p>
+    <p>Wiki Space is a static site with no build step and nothing to install. You need a browser and any local web server.</p>
     <ol>
-      <li>Download or clone the project folder.</li>
+      <li>Get the code from <a href="https://github.com/lbeckman314/wiki-space">GitHub</a>:
+        <pre><code>git clone https://github.com/lbeckman314/wiki-space.git</code></pre></li>
       <li>Start a web server in that folder. With Python 3:
-        <pre><code>cd wiki-globe
+        <pre><code>cd wiki-space
 python3 -m http.server 8000</code></pre>
         Or with Node.js:
         <pre><code>npx serve .</code></pre></li>
@@ -121,7 +122,7 @@ python3 -m http.server 8000</code></pre>
     <p>Edits to astronomy articles are rare. To simulate edits to chosen articles (this only reads from Wikipedia and Wikidata), open:</p>
     <pre><code>http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Mars</code></pre>
     <p>To fill the timeline with 30 minutes of simulated history, run this in the browser console:</p>
-    <pre><code>for (let i = 0; i &lt; 60; i++) __wikiGlobe.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })</code></pre>
+    <pre><code>for (let i = 0; i &lt; 60; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })</code></pre>
     <h3>If lookups stall</h3>
     <p>When Wikimedia rate-limits location lookups, the status line says so and the page waits before retrying. This mostly happens on
       shared networks such as cloud machines. New edits keep arriving and are placed once lookups resume.</p>

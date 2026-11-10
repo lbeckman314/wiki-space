@@ -65,7 +65,7 @@ function setFilter(name) {
 }
 
 // ---------------- show / hide panels ----------------
-const VIEW_KEY = 'wikiGlobe.view';
+const VIEW_KEY = 'wikiSpace.view';
 export function setView(part, on) {
   view[part] = on;
   document.body.classList.toggle('hide-' + part, !on);

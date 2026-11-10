@@ -1,5 +1,5 @@
 {
-  "name": "wiki-globe",
+  "name": "wiki-space",
   "private": true,
   "description": "Live Wikipedia edits on a 3D globe. The site itself needs no build step; this file only sets up the browser tests.",
   "scripts": {

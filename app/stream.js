@@ -125,7 +125,7 @@ function place(d, lang, loc) {
 }
 
 // Simulated edits, for trying things out: ?simulate=Andromeda Galaxy|Ceres (dwarf planet)|Mars
-// or __wikiGlobe.simulate('Betelgeuse') in the console. These never touch Wikipedia except to look up the article.
+// or __wikiSpace.simulate('Betelgeuse') in the console. These never touch Wikipedia except to look up the article.
 // Pass `at` to skip the lookup entirely, e.g. simulate('Test', 'en', { lat: 48.86, lng: 2.29 })
 // or simulate('Test sky', 'en', { sky: true, ra: 88.79, dec: 7.41 }).
 export function simulate(title, lang = 'en', at) {

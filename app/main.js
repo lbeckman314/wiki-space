@@ -97,14 +97,14 @@ $('t-sound').onchange = e => {
 
 // Point style and bar height, remembered per browser.
 $('point-style').onchange = e => setPointStyle(e.target.value);
-state.barMetric = load('wikiGlobe.barMetric', 'count') === 'bytes' ? 'bytes' : 'count';
+state.barMetric = load('wikiSpace.barMetric', 'count') === 'bytes' ? 'bytes' : 'count';
 $('bar-metric').value = state.barMetric;
 $('bar-metric').onchange = e => {
   state.barMetric = e.target.value === 'bytes' ? 'bytes' : 'count';
   buildGroups();
-  save('wikiGlobe.barMetric', state.barMetric);
+  save('wikiSpace.barMetric', state.barMetric);
 };
-setPointStyle(load('wikiGlobe.pointStyle', 'markers'));
+setPointStyle(load('wikiSpace.pointStyle', 'markers'));
 
 WikiSky.onSelect = item => select(item);
 
@@ -135,4 +135,4 @@ const sim = new URLSearchParams(location.search).get('simulate');
 if (sim) sim.split('|').forEach((t, i) => setTimeout(() => simulate(t.trim()), 1500 + i * 700));
 
 connect();
-window.__wikiGlobe = { state, world, simulate }; // handy for debugging in the console, and used by the tests
+window.__wikiSpace = { state, world, simulate }; // handy for debugging in the console, and used by the tests

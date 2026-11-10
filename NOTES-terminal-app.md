@@ -1,14 +1,14 @@
-# Idea: Wiki Globe as an SSH terminal app
+# Idea: Wiki Space as an SSH terminal app
 
 Not implemented. Notes on how a terminal version could work, so people could connect with `ssh` and see a similar view.
 
 ## Addressing
 
-ssh connects to a host, not a path, so `ssh liambeckman.com/wiki-globe` won't work. Common patterns:
+ssh connects to a host, not a path, so `ssh liambeckman.com/wiki-space` won't work. Common patterns:
 
-- `ssh wiki-globe@liambeckman.com`: the server reads the username and picks the app (the usual choice for multi-app SSH servers).
+- `ssh wiki-space@liambeckman.com`: the server reads the username and picks the app (the usual choice for multi-app SSH servers).
 - `ssh globe.liambeckman.com`: a subdomain per app.
-- `ssh -t liambeckman.com wiki-globe`: the command name picks the app.
+- `ssh -t liambeckman.com wiki-space`: the command name picks the app.
 
 If port 22 is already used for your own SSH login, either give the app port 22 and move the admin login to another port, or give the app its own IP or subdomain. Otherwise users need `ssh -p 2222 …`.
 

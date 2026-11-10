@@ -164,7 +164,7 @@ export function setPointStyle(style) {
   heatSig = '';
   buildGroups();
   if (state.pointStyle === 'heatmap') scheduleHeatmap(true);
-  save('wikiGlobe.pointStyle', state.pointStyle);
+  save('wikiSpace.pointStyle', state.pointStyle);
 }
 
 // The heatmap has no click events, so a click (not a drag) on the Earth in heatmap mode opens the
