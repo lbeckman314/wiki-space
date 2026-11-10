@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About Wiki Globe</title>
+  <meta name="description" content="How Wiki Globe works, how it was built, and how to run it yourself.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    html, body { overflow: auto; height: auto; }
+    body { background: var(--bg); }
+    .about { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; line-height: 1.6; }
+    .about a { color: var(--accent); }
+    .about .back { display: inline-block; margin-bottom: 20px; font-size: 13px; }
+    .about h1 { font-size: 30px; margin: 0 0 6px; letter-spacing: -0.01em; }
+    .about .lede { color: var(--muted); font-size: 16px; margin: 0 0 28px; }
+    .about h2 { font-size: 19px; margin: 36px 0 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .about h3 { font-size: 15px; margin: 22px 0 6px; }
+    .about p, .about li { color: #cdd3e3; }
+    .about ol, .about ul { padding-left: 22px; }
+    .about li { margin: 4px 0; }
+    .about code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em;
+      background: #141a2b; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+    .about pre { background: #0d1220; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+    .about pre code { background: none; border: 0; padding: 0; font-size: 13px; }
+    .steps { counter-reset: step; list-style: none; padding: 0; }
+    .steps > li { counter-increment: step; position: relative; padding: 2px 0 10px 40px; }
+    .steps > li::before { content: counter(step); position: absolute; left: 0; top: 2px; width: 26px; height: 26px; border-radius: 50%;
+      background: rgba(122,162,255,.16); border: 1px solid rgba(122,162,255,.45); color: var(--text); font-size: 13px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; }
+    .steps > li b { color: var(--text); }
+    .legend-list { list-style: none; padding: 0; }
+    .legend-list li { display: flex; gap: 10px; align-items: baseline; }
+    .legend-list .sw { transform: translateY(1px); }
+    .history li b { color: var(--text); }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; color: #cdd3e3; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .table-wrap { overflow-x: auto; }
+    kbd { font-family: inherit; font-size: 12px; background: #141a2b; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; }
+  </style>
+</head>
+<body>
+  <main class="about">
+    <a class="back" href="index.html">← Back to the globe</a>
+    <h1>About Wiki Globe</h1>
+    <p class="lede">Live edits to Wikipedia articles, placed on a 3D globe as they happen. Edits to astronomy articles appear on a sky map.
+      Inspired by Hatnote's <a href="https://listen.hatnote.com/">Listen to Wikipedia</a>.</p>
+
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><b>Listen.</b> The page connects to Wikimedia's public live feed of edits
+        (<a href="https://stream.wikimedia.org/v2/stream/recentchange">EventStreams</a>) and keeps edits to articles made by people, not bots,
+        on the Wikipedias you choose (English, the top 20 languages, or all of them).</li>
+      <li><b>Locate.</b> For each edited article it looks for a location, in this order:
+        <ul>
+          <li>The article's own coordinates on Wikipedia: an <b>exact</b> location.</li>
+          <li>Its Wikidata item's coordinates: also <b>exact</b>.</li>
+          <li>For astronomy articles, a position on the <b>sky map</b>: right ascension and declination for stars and galaxies,
+            today's position calculated from the orbit for asteroids and comets, a computed position for the Sun, Moon and planets,
+            or the centre of its constellation as an approximate fallback.</li>
+          <li>Otherwise a related place on Wikidata: where it is located, its headquarters, where a person was born or died, or its country.
+            These are <b>approximate</b> locations.</li>
+          <li>If none of these exist, the edit goes to the <b>Unplaced</b> list with the reason.</li>
+        </ul>
+        Requests are batched (up to 50 articles at a time), every answer is cached, and the page backs off when Wikimedia asks it to slow down.</li>
+      <li><b>Draw.</b> Edits ripple on the globe and leave a marker that fades over 10 minutes. Edits close together merge into one
+        marker with a count, and split apart as you zoom in.</li>
+      <li><b>Replay.</b> Every placed edit is kept in memory while the page is open, so the timeline can rewind and replay them at up to 3600× speed.</li>
+    </ol>
+
+    <h2>Reading the globe</h2>
+    <ul class="legend-list">
+      <li><i class="sw" style="--c:var(--add)"></i><span>Content added.</span></li>
+      <li><i class="sw" style="--c:var(--remove)"></i><span>Content removed.</span></li>
+      <li><i class="sw" style="--c:var(--new)"></i><span>A new article.</span></li>
+      <li><i class="sw solid"></i><span>Solid markers are exact locations; faint ones are approximate (a related place).</span></li>
+      <li><span class="lg-count">3</span><span>A number means several edits close together. Click it to see them all.</span></li>
+    </ul>
+    <h3>Controls</h3>
+    <ul>
+      <li><b>Sidebar, Sky map, Timeline</b> buttons under the title show or hide each panel. Your choice is remembered in this browser.</li>
+      <li>Click the <b>placed, exact, approximate</b> or <b>in the sky</b> numbers to list those edits in the sidebar.</li>
+      <li><b>Search</b> finds edits recorded this session by title, place, language or editor. Combine it with the filters and the Placed and Unplaced tabs.</li>
+      <li><b>Follow</b> turns each globe to the newest edit. <b>Pause rotation</b> buttons stop each globe spinning.</li>
+      <li>On the timeline, drag the track or use <kbd>←</kbd> <kbd>→</kbd> (1 minute), <kbd>Shift</kbd> + arrows (10 minutes),
+        <kbd>Home</kbd> (start) and <kbd>End</kbd> (live).</li>
+    </ul>
+
+    <h2>How we built it</h2>
+    <ol class="history">
+      <li><b>Feasibility.</b> Confirmed that the live edit feed and the article-coordinates API both work straight from a browser, so no server is needed.</li>
+      <li><b>First prototype.</b> A globe.gl page with the live feed, batched coordinate lookups, ripples, a detail card and optional sound.</li>
+      <li><b>Wikidata fallback.</b> Used related places on Wikidata so many more edits could be placed, drawn as approximate.</li>
+      <li><b>Sky map.</b> Added a second globe for the sky, with star and constellation data, orbit calculations and planet positions.</li>
+      <li><b>Polish.</b> Clickable floating titles, a Follow mode, a starfield behind the Earth that matches the sky map, and retries when rate-limited.</li>
+      <li><b>Readability.</b> Merged nearby edits into counted markers, added the Unplaced list and per-globe rotation buttons.</li>
+      <li><b>Timeline.</b> Recorded edits by the time they were made and added a replay bar with speeds and keyboard control.</li>
+      <li><b>Navigation.</b> Show/hide toggles, search, clickable stats and this page.</li>
+    </ol>
+
+    <h2>Run it locally</h2>
+    <p>Wiki Globe is a static site with no build step and nothing to install. You need a browser and any local web server.</p>
+    <ol>
+      <li>Download or clone the project folder.</li>
+      <li>Start a web server in that folder. With Python 3:
+        <pre><code>cd wiki-globe
+python3 -m http.server 8000</code></pre>
+        Or with Node.js:
+        <pre><code>npx serve .</code></pre></li>
+      <li>Open <a href="http://localhost:8000">http://localhost:8000</a>. With <code>npx serve</code>, use the address it prints.</li>
+    </ol>
+    <p>Use a local server rather than opening <code>index.html</code> as a file, so the browser treats the page like a normal website.</p>
+    <h3>Trying things without waiting</h3>
+    <p>Edits to astronomy articles are rare. To simulate edits to chosen articles (this only reads from Wikipedia and Wikidata), open:</p>
+    <pre><code>http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Mars</code></pre>
+    <p>To fill the timeline with 30 minutes of simulated history, run this in the browser console:</p>
+    <pre><code>for (let i = 0; i &lt; 60; i++) __wikiGlobe.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })</code></pre>
+    <h3>If lookups stall</h3>
+    <p>When Wikimedia rate-limits location lookups, the status line says so and the page waits before retrying. This mostly happens on
+      shared networks such as cloud machines. New edits keep arriving and are placed once lookups resume.</p>
+
+    <h2>Deploy it</h2>
+    <p>Any static host works, because the site is plain files:</p>
+    <ul>
+      <li><b>GitHub Pages:</b> push the folder to a repository, then in the repository's Settings → Pages, deploy from the main branch, root folder.</li>
+      <li><b>Netlify or Cloudflare Pages:</b> drag the folder onto their deploy page, or connect the repository with no build command.</li>
+      <li><b>Your own server:</b> copy the files into any directory your web server already serves.</li>
+    </ul>
+    <p>Each visitor's browser talks to Wikimedia directly, so a busy site multiplies requests to Wikimedia. For many viewers, or for a
+      timeline longer than one browser session, the next step is a small always-on server that reads the feed once, looks up locations once,
+      and shares the results with every visitor.</p>
+
+    <h2>Credits and data</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>What</th><th>Source</th><th>License</th></tr></thead>
+        <tbody>
+          <tr><td>Live edits</td><td><a href="https://wikitech.wikimedia.org/wiki/Event_Platform/EventStreams">Wikimedia EventStreams</a></td><td>Wikimedia terms of use</td></tr>
+          <tr><td>Article coordinates and summaries</td><td>Wikipedia (MediaWiki and REST APIs)</td><td>Text: CC BY-SA 4.0</td></tr>
+          <tr><td>Places, sky coordinates and orbits</td><td><a href="https://www.wikidata.org/">Wikidata</a></td><td>CC0</td></tr>
+          <tr><td>3D globes</td><td><a href="https://github.com/vasturiano/globe.gl">globe.gl</a> (built on three.js)</td><td>MIT</td></tr>
+          <tr><td>Earth textures</td><td>three-globe example images, based on NASA imagery</td><td>See three-globe</td></tr>
+          <tr><td>Stars and constellations</td><td><a href="https://github.com/ofrohn/d3-celestial">d3-celestial</a> data</td><td>BSD-3-Clause</td></tr>
+          <tr><td>Planet positions</td><td><a href="https://github.com/cosinekitty/astronomy">Astronomy Engine</a></td><td>MIT</td></tr>
+          <tr><td>Inspiration</td><td><a href="https://listen.hatnote.com/">Listen to Wikipedia</a> by Hatnote</td><td>–</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

@@ -214,3 +214,43 @@ a:hover { text-decoration: underline; }
   .rot-btn { bottom: 66px; }
   #sky-wrap.big { height: calc(100% - 90px); }
 }
+
+/* Show/hide toggles and About link (under the title) */
+#view { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; pointer-events: auto; }
+#view button, #view a { font: inherit; font-size: 11px; line-height: 1; padding: 5px 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(8, 11, 20, 0.6); color: var(--muted); text-decoration: none; }
+#view button[aria-pressed="true"] { color: var(--text); background: rgba(122,162,255,.16); border-color: rgba(122,162,255,.45); }
+#view button:hover, #view a:hover { border-color: rgba(255,255,255,.35); color: var(--text); }
+#view button[aria-pressed="false"]::before { content: '+ '; }
+
+/* Stats are buttons that filter the sidebar list */
+#stats button { pointer-events: auto; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
+  text-align: inherit; cursor: pointer; border-radius: 6px; }
+#stats button:hover span, #stats button:focus-visible span { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+#stats button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Search, filters and list note */
+.search-wrap { padding: 10px 12px 0; }
+#search { width: 100%; background: #141a2b; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font: inherit; font-size: 13px; }
+#search::placeholder { color: var(--muted); }
+#search:focus { outline: none; border-color: rgba(122,162,255,.6); }
+#filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px 2px; }
+#filters button { font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: none; color: var(--muted); }
+#filters button[aria-pressed="true"] { color: var(--text); background: rgba(122,162,255,.16); border-color: rgba(122,162,255,.45); }
+#filters button:hover { border-color: rgba(255,255,255,.35); }
+#list-note { margin: 6px 16px 2px; font-size: 11px; color: var(--muted); }
+#ticker li.sel { background: rgba(122,162,255,.12); }
+
+/* Hidden panels */
+body.hide-sidebar #panel { display: none; }
+body.hide-sky #sky-wrap { display: none; }
+body.hide-timeline #timeline { display: none; }
+body.hide-timeline #legend, body.hide-timeline #sky-wrap, body.hide-timeline .rot-btn { bottom: 16px; }
+body.hide-timeline #sky-wrap.big { height: min(80%, 760px); }
+
+@media (max-width: 760px) {
+  #stats { top: 104px; }
+  body.hide-timeline #sky-wrap, body.hide-timeline .rot-btn { bottom: 10px; }
+}

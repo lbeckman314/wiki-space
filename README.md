@@ -36,6 +36,10 @@ __wikiGlobe.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 - **Pause stream**: disconnect from the live stream.
 - **Pause rotation** buttons: one at the bottom of the Earth view and one in the sky map's header, so each globe can be stopped separately.
 - **Placed / Unplaced** tabs: placed edits, and edits that couldn't be placed, with the reason (no coordinates or related place, or a location on the surface of another body).
+- **Search** (top of the sidebar): finds edits recorded this session by title, place, language or editor, ignoring accents and letter case. It covers everything recorded, not just the rows on screen, and combines with the tabs and the **All / Exact / Approximate / Sky** filters. Esc clears it.
+- **Stats** at the top right: click placed, exact, approximate or in the sky to list those edits in the sidebar.
+- **Sidebar / Sky map / Timeline** buttons under the title show or hide each panel, and the choice is remembered in the browser. A hidden sky map stops drawing. Opening an edit's card shows the sidebar again.
+- **About** (`about.html`): how it works, how it was built, how to run and deploy it, and credits.
 - Click a marker, a floating title or an entry in a list to open the detail card.
 
 ### Timeline

@@ -9,7 +9,7 @@
   const LABEL_LIFE = 6000;
   const MAX_LABELS = 6;
   const MAX_TICKER = 60;
-  const MAX_UNPLACED = 100;
+  const MAX_UNPLACED = 5000;    // unplaced edits kept for the Unplaced tab and search
   const MAX_HISTORY = 50000;    // placed edits kept in memory for the timeline
 
   const COLORS = { add: [61, 220, 151], remove: [255, 107, 107], new: [178, 141, 255], neutral: [154, 163, 181] };
@@ -29,6 +29,7 @@
     rotate: true,
     paused: false,
     sound: false,
+    unplacedList: [], // edits that could not be placed, oldest first
     history: [],  // every placed edit (Earth and sky) this session, ordered by edit time
     points: [],   // Earth edits on screen: the POINT_LIFE window before the playhead, oldest first
     groups: [],   // points merged into on-screen clusters (see buildGroups)
@@ -160,7 +161,9 @@
   function unplaced(d, lang, reason) {
     const item = { ...makeItem(d, lang), unplaced: true, reason };
     state.unplaced++;
-    addRow($('unplaced'), item, MAX_UNPLACED);
+    state.unplacedList.push(item);
+    if (state.unplacedList.length > MAX_UNPLACED) state.unplacedList.shift();
+    listDirty = true;
   }
 
   function place(d, lang, loc) {
@@ -331,32 +334,118 @@
 
   const visiblePoints = () => (state.showApprox ? state.points.slice() : state.points.filter(p => p.tier === 'exact'));
 
-  // ---------------- lists (placed / unplaced) ----------------
-  function addTicker(item) { addRow($('ticker'), item, MAX_TICKER); }
-  function addRow(list, item, max) {
-    const li = document.createElement('li');
-    const cls = item.kind === 'new' ? 'newc' : item.delta > 0 ? 'pos' : item.delta < 0 ? 'neg' : '';
-    const icon = item.unplaced ? '∅' : item.sky ? '✦' : item.tier === 'exact' ? '📍' : '≈';
-    li.innerHTML =
-      `<i class="sw" style="--c:${rgba(COLORS[item.kind], 1)};${item.tier === 'exact' || item.sky ? '' : 'opacity:.55'}"></i>` +
-      `<span class="t">${esc(item.title)}<span class="sub">${esc(item.lang)} · ${icon} ${esc(item.reason)}</span></span>` +
-      `<span class="d ${cls}">${item.kind === 'new' ? 'new' : fmtDelta(item.delta)}</span>`;
-    li.onclick = () => select(item);
-    list.prepend(li);
-    while (list.children.length > max) list.lastChild.remove();
-  }
-  function showTab(name) {
-    for (const t of ['placed', 'unplaced']) {
-      $('tab-' + t).setAttribute('aria-selected', String(t === name));
-      $(t === 'placed' ? 'ticker' : 'unplaced').hidden = t !== name;
+  // ---------------- sidebar list: tabs, filters and search ----------------
+  // The list is rebuilt from the data (state.history / state.unplacedList), newest first, so search and
+  // filters cover everything recorded this session. Only the first MAX_TICKER matches are drawn.
+  const list = { tab: 'placed', filter: 'all', q: '', shown: [] };
+  let listDirty = true;
+  function addTicker() { listDirty = true; }
+  const fold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const FILTERS = {
+    all: () => true,
+    exact: it => !it.sky && it.tier === 'exact',
+    approx: it => !it.sky && it.tier !== 'exact',
+    sky: it => !!it.sky,
+  };
+  const FILTER_NAMES = { all: 'placed', exact: 'exact', approx: 'approximate', sky: 'sky' };
+  function renderList() {
+    listDirty = false;
+    const source = list.tab === 'placed' ? state.history : state.unplacedList;
+    const pass = list.tab === 'placed' ? FILTERS[list.filter] : FILTERS.all;
+    const terms = fold(list.q).split(/\s+/).filter(Boolean);
+    const shown = [];
+    let matches = 0;
+    for (let i = source.length - 1; i >= 0; i--) {
+      const it = source[i];
+      if (!pass(it)) continue;
+      if (terms.length) {
+        const hay = it._hay || (it._hay = fold(`${it.title} ${it.lang} ${it.reason} ${it.user}`));
+        if (!terms.every(t => hay.includes(t))) continue;
+      }
+      matches++;
+      if (shown.length < MAX_TICKER) shown.push(it);
     }
+    list.shown = shown;
+    $('ticker').innerHTML = shown.map((item, i) => {
+      const cls = item.kind === 'new' ? 'newc' : item.delta > 0 ? 'pos' : item.delta < 0 ? 'neg' : '';
+      const icon = item.unplaced ? '∅' : item.sky ? '✦' : item.tier === 'exact' ? '📍' : '≈';
+      const sel = item === state.selected ? ' class="sel"' : '';
+      return `<li data-i="${i}"${sel}><i class="sw" style="--c:${rgba(COLORS[item.kind], 1)};${item.tier === 'exact' || item.sky ? '' : 'opacity:.55'}"></i>` +
+        `<span class="t">${esc(item.title)}<span class="sub">${esc(item.lang)} · ${icon} ${esc(item.reason)}</span></span>` +
+        `<span class="d ${cls}">${item.kind === 'new' ? 'new' : fmtDelta(item.delta)}</span></li>`;
+    }).join('');
+    const total = list.tab === 'placed' ? state.history.length : state.unplacedList.length;
+    const kindName = list.tab === 'placed' ? FILTER_NAMES[list.filter] : 'unplaced';
+    const what = `${kindName} edit${matches === 1 ? '' : 's'}`;
+    let note;
+    if (!total) note = list.tab === 'placed' ? 'No placed edits yet.' : 'No unplaced edits yet.';
+    else if (!matches) note = `No ${what} match “${esc(list.q.trim())}”.`;
+    else if (terms.length || list.filter !== 'all') note = `${matches.toLocaleString()} ${what}${terms.length ? ` matching “${esc(list.q.trim())}”` : ''}${matches > shown.length ? ` · newest ${shown.length} shown` : ''}`;
+    else note = matches > shown.length ? `Newest ${shown.length} of ${matches.toLocaleString()} · search to find older ones` : '';
+    $('list-note').innerHTML = note;
+    $('list-note').hidden = !note;
+  }
+  // One click handler for all rows (rows are rebuilt often).
+  $('ticker').addEventListener('click', e => {
+    const li = e.target.closest('li[data-i]');
+    if (li) select(list.shown[Number(li.dataset.i)]);
+  });
+  setInterval(() => { if (listDirty) renderList(); }, 400);
+
+  function showTab(name) {
+    list.tab = name;
+    for (const t of ['placed', 'unplaced']) $('tab-' + t).setAttribute('aria-selected', String(t === name));
+    $('filters').hidden = name !== 'placed';
+    renderList();
+  }
+  function setFilter(name) {
+    list.filter = name;
+    for (const b of $('filters').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.filter === name));
+    renderList();
   }
   $('tab-placed').onclick = () => showTab('placed');
   $('tab-unplaced').onclick = () => showTab('unplaced');
+  $('filters').addEventListener('click', e => { const b = e.target.closest('button[data-filter]'); if (b) setFilter(b.dataset.filter); });
+  let searchTimer = null;
+  $('search').addEventListener('input', e => {
+    list.q = e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderList, 120);
+  });
+  $('search').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; list.q = ''; renderList(); } });
+
+  // Stats in the top bar open the sidebar with the matching filter.
+  document.querySelectorAll('#stats button[data-filter]').forEach(b => {
+    b.onclick = () => {
+      setView('sidebar', true);
+      showTab('placed');
+      setFilter(b.dataset.filter);
+      $('ticker').scrollTop = 0;
+    };
+  });
+
+  // ---------------- show / hide panels ----------------
+  // Remembered per browser; storage can be unavailable (private mode, blocked), so every access is guarded.
+  const VIEW_KEY = 'wikiGlobe.view';
+  const view = { sidebar: true, sky: true, timeline: true };
+  try { Object.assign(view, JSON.parse(localStorage.getItem(VIEW_KEY) || '{}')); } catch (e) { /* defaults */ }
+  function setView(part, on) {
+    view[part] = on;
+    document.body.classList.toggle('hide-' + part, !on);
+    $('v-' + part).setAttribute('aria-pressed', String(on));
+    if (part === 'sky') on ? WikiSky.globe.resumeAnimation() : WikiSky.globe.pauseAnimation(); // no drawing while hidden
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* not saved */ }
+  }
+  for (const part of Object.keys(view)) {
+    $('v-' + part).onclick = () => setView(part, !view[part]);
+    setView(part, view[part]);
+  }
 
   // ---------------- detail card ----------------
   function select(item) {
     state.selected = item;
+    listDirty = true; // highlight it in the list
+    if (!view.sidebar) setView('sidebar', true); // the card lives in the sidebar
     if (item.sky) {
       WikiSky.focus(item);
     } else if (item.unplaced) {
@@ -427,6 +516,7 @@
   $('card-close').onclick = () => {
     $('card').hidden = true;
     state.selected = null;
+    listDirty = true;
     WikiSky.focus(null);
     computeWindow();
     buildGroups();

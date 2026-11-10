@@ -15,14 +15,20 @@
       <header id="hud">
         <h1>Wiki Globe</h1>
         <div id="status"><span class="dot" id="status-dot"></span><span id="status-text">connecting…</span></div>
+        <nav id="view" aria-label="Show or hide panels">
+          <button id="v-sidebar" aria-pressed="true" title="Show or hide the sidebar">Sidebar</button>
+          <button id="v-sky" aria-pressed="true" title="Show or hide the sky map">Sky map</button>
+          <button id="v-timeline" aria-pressed="true" title="Show or hide the timeline">Timeline</button>
+          <a href="about.html">About</a>
+        </nav>
       </header>
 
       <div id="stats">
         <div><b id="s-rate">0</b><span>article edits / min</span></div>
-        <div><b id="s-placed">0%</b><span>placed</span></div>
-        <div><b id="s-exact">0</b><span>exact</span></div>
-        <div><b id="s-approx">0</b><span>approximate</span></div>
-        <div><b id="s-sky">0</b><span>in the sky</span></div>
+        <button data-filter="all" title="List placed edits"><b id="s-placed">0%</b><span>placed</span></button>
+        <button data-filter="exact" title="List edits placed exactly"><b id="s-exact">0</b><span>exact</span></button>
+        <button data-filter="approx" title="List edits placed approximately"><b id="s-approx">0</b><span>approximate</span></button>
+        <button data-filter="sky" title="List edits on the sky map"><b id="s-sky">0</b><span>in the sky</span></button>
       </div>
 
       <section id="sky-wrap" aria-label="Sky map">
@@ -103,12 +109,21 @@
         <section id="card-more" hidden></section>
       </article>
 
+      <div class="search-wrap">
+        <input id="search" type="search" placeholder="Search titles, places, languages, editors…" aria-label="Search edits" autocomplete="off">
+      </div>
       <div class="tabs" role="tablist">
         <button id="tab-placed" role="tab" aria-selected="true">Placed <span id="n-placed">0</span></button>
         <button id="tab-unplaced" role="tab" aria-selected="false" title="Edits to articles with no location">Unplaced <span id="n-unplaced">0</span></button>
       </div>
+      <div id="filters" role="group" aria-label="Filter placed edits">
+        <button data-filter="all" aria-pressed="true">All</button>
+        <button data-filter="exact" aria-pressed="false">📍 Exact</button>
+        <button data-filter="approx" aria-pressed="false">≈ Approximate</button>
+        <button data-filter="sky" aria-pressed="false">✦ Sky</button>
+      </div>
+      <p id="list-note" hidden></p>
       <ol id="ticker"></ol>
-      <ol id="unplaced" hidden></ol>
     </aside>
   </div>
 
