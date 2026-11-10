@@ -25,6 +25,7 @@
   const state = {
     mode: $('wiki-mode').value,
     showApprox: true,
+    pointStyle: 'markers', // or 'heatmap'
     follow: false,
     rotate: true,
     paused: false,
@@ -68,6 +69,14 @@
     .labelDotOrientation(() => 'top')
     .labelLabel(groupTooltip)
     .onLabelClick(g => select(g.latest))
+    // heatmap (the alternative point style): one dataset, thin and close to the surface
+    .heatmapPoints('points').heatmapPointLat('lat').heatmapPointLng('lng')
+    .heatmapPointWeight('w') // summed edit weights of one cluster (see scheduleHeatmap)
+    .heatmapBandwidth(() => heatBandwidth())
+    .heatmapBaseAltitude(0.002).heatmapTopAltitude(0.018)
+    .heatmapColorFn(() => heatColor)
+    .heatmapColorSaturation(1.15)
+    .heatmapsTransitionDuration(0)
     // one-shot ripples
     .ringLat('lat').ringLng('lng')
     .ringColor(d => t => rgba(COLORS[d.kind], (d.tier === 'exact' ? 0.9 : 0.4) * (1 - t)))
@@ -296,7 +305,100 @@
       g.lng = g.items.reduce((s, p) => s + p.lng, 0) / g.n;
       return g;
     });
-    world.pointsData(state.groups).labelsData(state.groups.filter(g => g.n > 1));
+    if (state.pointStyle === 'heatmap') {
+      // Only the selected edit keeps a marker; everything else is drawn by the heatmap.
+      world.pointsData(state.groups.filter(g => g.items.includes(state.selected))).labelsData([]);
+      scheduleHeatmap();
+    } else {
+      world.pointsData(state.groups).labelsData(state.groups.filter(g => g.n > 1));
+    }
+  }
+
+  // ---------------- heatmap point style ----------------
+  // three-globe estimates density at every vertex of a sphere whose detail follows the bandwidth
+  // (a 2° bandwidth is ~200k vertices). With WebGPU that runs on the GPU; without it (Chrome on Linux,
+  // older Safari/Firefox) it runs on the main thread. To keep that affordable:
+  //   - the heatmap is fed one weighted point per cluster, not one per edit;
+  //   - the bandwidth has three fixed steps (2°, 3°, 4°) instead of following every zoom change;
+  //   - it is refreshed at most every 8 s, and only when its input changed;
+  //   - the same dataset object is reused, so the layer updates in place instead of being rebuilt.
+  // three-globe takes its WebGPU route whenever navigator.gpu exists, but some browsers expose it with no
+  // usable adapter, and then the heatmap comes out empty. In that case hide navigator.gpu from it, so it
+  // uses its CPU route instead.
+  const gpuChecked = (async () => {
+    try {
+      if (navigator.gpu && !(await navigator.gpu.requestAdapter())) {
+        Object.defineProperty(navigator, 'gpu', { value: undefined, configurable: true });
+      }
+    } catch (e) { /* keep whatever the browser offers */ }
+  })();
+  const heatBandwidth = () => (clusterAlt > 1.6 ? 4 : clusterAlt > 0.7 ? 3 : 2);
+  // Colour scale (same stops as the legend): blue → cyan → green → amber → red, never fully opaque,
+  // so the globe stays visible under the heat.
+  const HEAT_STOPS = [[0, [70, 134, 251]], [0.3, [26, 228, 182]], [0.55, [162, 252, 60]], [0.78, [250, 187, 57]], [1, [228, 70, 10]]];
+  function heatColor(t) {
+    t = Math.min(1, Math.max(0, t));
+    let k = 1;
+    while (k < HEAT_STOPS.length - 1 && t > HEAT_STOPS[k][0]) k++;
+    const [t0, c0] = HEAT_STOPS[k - 1], [t1, c1] = HEAT_STOPS[k];
+    const f = (t - t0) / (t1 - t0 || 1);
+    const c = c0.map((v, i) => Math.round(v + (c1[i] - v) * f));
+    return `rgba(${c[0]},${c[1]},${c[2]},${(0.75 * Math.cbrt(t)).toFixed(3)})`;
+  }
+  const heatWeight = p => {
+    const age = Math.min(1, Math.max(0, (clockNow() - p.time) / POINT_LIFE));
+    return (p.tier === 'exact' ? 1 : 0.45) * (1 - 0.85 * age); // recent and exact edits count most
+  };
+  const heatDataset = { points: [] };
+  let heatTimer = null, lastHeat = 0, heatSig = '';
+  function scheduleHeatmap(force) {
+    if (heatTimer && !force) return;
+    clearTimeout(heatTimer);
+    heatTimer = setTimeout(async () => {
+      heatTimer = null;
+      await gpuChecked;
+      if (state.pointStyle !== 'heatmap') return;
+      const pts = state.groups.map(g => ({ lat: g.lat, lng: g.lng, w: g.items.reduce((s, p) => s + heatWeight(p), 0) }));
+      const sig = heatBandwidth() + ':' + pts.length + ':' + pts.reduce((s, p) => s + p.w, 0).toFixed(1);
+      if (sig === heatSig && !force) return;
+      heatSig = sig;
+      lastHeat = Date.now();
+      heatDataset.points = pts;
+      world.heatmapsData(pts.length ? [heatDataset] : []);
+    }, force ? 0 : Math.max(0, lastHeat + 8000 - Date.now()));
+  }
+  function setPointStyle(style) {
+    state.pointStyle = style === 'heatmap' ? 'heatmap' : 'markers';
+    document.body.classList.toggle('points-heatmap', state.pointStyle === 'heatmap');
+    $('point-style').value = state.pointStyle;
+    if (state.pointStyle !== 'heatmap') world.heatmapsData([]);
+    heatSig = '';
+    buildGroups();
+    if (state.pointStyle === 'heatmap') scheduleHeatmap(true);
+    try { localStorage.setItem('wikiGlobe.pointStyle', state.pointStyle); } catch (e) { /* not saved */ }
+  }
+  // The heatmap has no click events, so a click (not a drag) on the Earth in heatmap mode opens the
+  // newest edit near that spot.
+  let downAt = null;
+  wrap.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+  wrap.addEventListener('click', e => {
+    if (state.pointStyle !== 'heatmap' || !downAt) return;
+    if (e.target.closest('.glabel')) return; // floating titles handle their own clicks
+    if (Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return; // it was a drag
+    const r = wrap.getBoundingClientRect();
+    const at = world.toGlobeCoords(e.clientX - r.left, e.clientY - r.top);
+    if (!at) return; // clicked off the globe
+    const reach = heatBandwidth() * 1.5;
+    let best = null;
+    for (const p of visiblePoints()) {
+      if (greatCircleDeg(at.lat, at.lng, p.lat, p.lng) <= reach && (!best || p.time > best.time)) best = p;
+    }
+    if (best) select(best);
+  });
+  function greatCircleDeg(lat1, lng1, lat2, lng2) {
+    const r = Math.PI / 180, dLat = (lat2 - lat1) * r, dLng = (lng2 - lng1) * r;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLng / 2) ** 2;
+    return 2 * Math.asin(Math.min(1, Math.sqrt(a))) / r;
   }
   const groupOf = item => state.groups.find(g => g.items.includes(item));
 
@@ -711,6 +813,10 @@
   };
 
   WikiSky.onSelect = item => select(item);
+  $('point-style').onchange = e => setPointStyle(e.target.value);
+  let savedStyle = 'markers';
+  try { savedStyle = localStorage.getItem('wikiGlobe.pointStyle') || 'markers'; } catch (e) { /* default */ }
+  setPointStyle(savedStyle);
 
   // Simulated edits, for trying things out: ?simulate=Andromeda Galaxy|Ceres (dwarf planet)|Mars
   // or __wikiGlobe.simulate('Betelgeuse') in the console. These never touch Wikipedia except to look up the article.

@@ -32,6 +32,7 @@ __wikiGlobe.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 
 - **Approximate**: show or hide edits placed through a related place on Wikidata.
 - **Sound**: play a note for each edit.
+- **Points**: draw edits as numbered markers (clusters with counts) or as a thin heatmap. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is remembered in the browser.
 - **Follow**: turn each globe to its newest edit, at most once every 1.5 seconds (when edits arrive faster, it catches up with the latest one). Rotation pauses while Follow is on, and the camera stays put while a detail card is open.
 - **Pause stream**: disconnect from the live stream.
 - **Pause rotation** buttons: one at the bottom of the Earth view and one in the sky map's header, so each globe can be stopped separately.

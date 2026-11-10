@@ -69,10 +69,11 @@
         <div class="lg-row"><i class="sw" style="--c:var(--remove)"></i>Content removed</div>
         <div class="lg-row"><i class="sw" style="--c:var(--new)"></i>New article</div>
         <div class="lg-sep"></div>
-        <div class="lg-row"><i class="sw solid"></i>Exact (article / Wikidata coordinates)</div>
-        <div class="lg-row"><i class="sw soft"></i>Approximate (related place on Wikidata)</div>
+        <div class="lg-row lg-markers"><i class="sw solid"></i>Exact (article / Wikidata coordinates)</div>
+        <div class="lg-row lg-markers"><i class="sw soft"></i>Approximate (related place on Wikidata)</div>
         <div class="lg-row"><span class="lg-star">✦</span>Sky: RA/Dec, orbit or constellation</div>
-        <div class="lg-row"><span class="lg-count">3</span>Several edits close together</div>
+        <div class="lg-row lg-markers"><span class="lg-count">3</span>Several edits close together</div>
+        <div class="lg-row lg-heat"><span class="lg-heatbar"></span>Heatmap: more, newer edits are warmer</div>
       </section>
     </main>
 
@@ -83,6 +84,12 @@
             <option value="en">English Wikipedia</option>
             <option value="top" selected>Top 20 languages</option>
             <option value="all">All Wikipedias</option>
+          </select>
+        </label>
+        <label>Points
+          <select id="point-style">
+            <option value="markers">Numbered markers</option>
+            <option value="heatmap">Heatmap</option>
           </select>
         </label>
         <div class="toggles">
