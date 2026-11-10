@@ -1,0 +1,18 @@
+# Test dependencies (npm install); package.json and package-lock.json are committed.
+node_modules/
+
+# Playwright output, if a run ever writes reports or traces.
+test-results/
+playwright-report/
+
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Local secrets, if any appear later
+.env
+.env.*
