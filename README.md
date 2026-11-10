@@ -32,7 +32,7 @@ __wikiGlobe.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 
 - **Approximate**: show or hide edits placed through a related place on Wikidata.
 - **Sound**: play a note for each edit.
-- **Points**: draw edits as numbered markers (clusters with counts) or as a thin heatmap. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is remembered in the browser.
+- **Points**: draw edits as numbered markers (clusters with counts), as **bars** (two columns per cluster: teal for additions and new articles on the left, orange-red for removals on the right; height by number of edits or, with **Bar height**, bytes changed on a log scale), or as a thin heatmap. Bars read best near the edge of the globe, where you see them from the side. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is remembered in the browser.
 - **Follow**: turn each globe to its newest edit, at most once every 1.5 seconds (when edits arrive faster, it catches up with the latest one). Rotation pauses while Follow is on, and the camera stays put while a detail card is open.
 - **Pause stream**: disconnect from the live stream.
 - **Pause rotation** buttons: one at the bottom of the Earth view and one in the sky map's header, so each globe can be stopped separately.
@@ -41,7 +41,8 @@ __wikiGlobe.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 - **Stats** at the top right: click placed, exact, approximate or in the sky to list those edits in the sidebar.
 - **Sidebar / Sky map / Timeline** buttons under the title show or hide each panel, and the choice is remembered in the browser. A hidden sky map stops drawing. Opening an edit's card shows the sidebar again.
 - **About** (`about.html`): how it works, how it was built, how to run and deploy it, and credits.
-- Click a marker, a floating title or an entry in a list to open the detail card.
+- Click a marker, a floating title or an entry in a list to open the detail card. When the edit is part of a cluster, the card shows a small chart of additions (up) and removals (down) there over the last 10 minutes, in 30-second steps; hover it for exact counts.
+- The bars and the card chart use teal and orange-red rather than green and red, so they stay distinguishable with red-green colour blindness (checked with a colour-vision validator against the page background). Position (left/right, up/down) tells them apart too.
 
 ### Timeline
 

@@ -73,6 +73,8 @@
         <div class="lg-row lg-markers"><i class="sw soft"></i>Approximate (related place on Wikidata)</div>
         <div class="lg-row"><span class="lg-star">✦</span>Sky: RA/Dec, orbit or constellation</div>
         <div class="lg-row lg-markers"><span class="lg-count">3</span>Several edits close together</div>
+        <div class="lg-row lg-bars"><i class="lg-bar" style="--c:#14a6a0"></i>Additions and new articles (left bar)</div>
+        <div class="lg-row lg-bars"><i class="lg-bar" style="--c:#e2603f"></i>Removals (right bar)</div>
         <div class="lg-row lg-heat"><span class="lg-heatbar"></span>Heatmap: more, newer edits are warmer</div>
       </section>
     </main>
@@ -90,6 +92,13 @@
           <select id="point-style">
             <option value="markers">Numbered markers</option>
             <option value="heatmap">Heatmap</option>
+            <option value="bars">Bars: additions vs removals</option>
+          </select>
+        </label>
+        <label id="bar-metric-wrap">Bar height
+          <select id="bar-metric">
+            <option value="count">Number of edits</option>
+            <option value="bytes">Bytes changed</option>
           </select>
         </label>
         <div class="toggles">
@@ -113,6 +122,7 @@
           <dt>Summary</dt><dd id="card-comment"></dd>
         </dl>
         <div class="card-links"><a id="card-diff" target="_blank" rel="noopener">View diff ↗</a></div>
+        <section id="card-chart" hidden></section>
         <section id="card-more" hidden></section>
       </article>
 

@@ -13,6 +13,9 @@
   const MAX_HISTORY = 50000;    // placed edits kept in memory for the timeline
 
   const COLORS = { add: [61, 220, 151], remove: [255, 107, 107], new: [178, 141, 255], neutral: [154, 163, 181] };
+  // Bars and the card chart use a teal / orange-red pair instead of green / red: it stays distinguishable
+  // with red-green colour blindness (checked with a CVD validator against the page background).
+  const BAR_ADD = [20, 166, 160], BAR_REMOVE = [226, 96, 63];
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -25,7 +28,8 @@
   const state = {
     mode: $('wiki-mode').value,
     showApprox: true,
-    pointStyle: 'markers', // or 'heatmap'
+    pointStyle: 'markers', // or 'heatmap' or 'bars'
+    barMetric: 'count',    // bar height: 'count' (edits) or 'bytes' (bytes changed, log scale)
     follow: false,
     rotate: true,
     paused: false,
@@ -50,18 +54,20 @@
     .showAtmosphere(true).atmosphereColor('#5b8cff').atmosphereAltitude(0.17)
     // persistent markers: one flat disc per cluster of nearby edits (see buildGroups)
     .pointLat('lat').pointLng('lng')
-    .pointAltitude(0.0015) // flat discs, so they don't turn into columns when seen from close up
-    .pointRadius(markerRadius)
-    .pointColor(g => {
-      const age = (clockNow() - g.latest.time) / POINT_LIFE;
-      const sel = g.items.includes(state.selected);
-      return rgba(sel ? [255, 255, 255] : COLORS[g.latest.kind], sel ? 0.95 : Math.max(0.12, (g.exact ? 0.95 : 0.45) * (1 - age)));
+    // Markers are flat discs (so they don't turn into columns close up); bars stand up (see buildBars).
+    .pointAltitude(d => (d.bar ? d.alt : 0.0015))
+    .pointRadius(d => (d.bar ? d.r : markerRadius(d)))
+    .pointColor(d => {
+      const sel = d.items.includes(state.selected);
+      if (d.bar) return rgba(sel ? [255, 255, 255] : d.side === 'add' ? BAR_ADD : BAR_REMOVE, sel ? 0.95 : 0.9);
+      const age = (clockNow() - d.latest.time) / POINT_LIFE;
+      return rgba(sel ? [255, 255, 255] : COLORS[d.latest.kind], sel ? 0.95 : Math.max(0.12, (d.exact ? 0.95 : 0.45) * (1 - age)));
     })
     .pointResolution(24)
     .pointsMerge(false)
     .pointsTransitionDuration(0)
-    .pointLabel(groupTooltip)
-    .onPointClick(g => select(g.latest))
+    .pointLabel(d => (d.bar ? barTooltip(d) : groupTooltip(d)))
+    .onPointClick(d => select(d.latest))
     // edit counts on clusters
     .labelLat(g => g.lat - 0.8 * markerRadius(g)).labelLng('lng').labelText(g => String(g.n)) // shifted so the number sits centred on the disc
     .labelSize(g => markerRadius(g) * 1.05).labelDotRadius(0).labelAltitude(0.003).labelResolution(2)
@@ -309,9 +315,50 @@
       // Only the selected edit keeps a marker; everything else is drawn by the heatmap.
       world.pointsData(state.groups.filter(g => g.items.includes(state.selected))).labelsData([]);
       scheduleHeatmap();
+    } else if (state.pointStyle === 'bars') {
+      world.pointsData(buildBars()).labelsData([]);
     } else {
       world.pointsData(state.groups).labelsData(state.groups.filter(g => g.n > 1));
     }
+  }
+
+  // ---------------- bars point style ----------------
+  // Each cluster gets up to two columns side by side: additions (incl. new articles) to the west,
+  // removals to the east, so position tells them apart as well as colour. Height is the number of edits,
+  // or total bytes changed on a log scale. Heights are scaled to the tallest bar on screen, with a floor
+  // so a handful of edits doesn't look like a skyscraper, and shrink as you zoom in.
+  const barValue = items => (state.barMetric === 'bytes' ? items.reduce((s, p) => s + Math.abs(p.delta), 0) : items.length);
+  const barScale = v => (state.barMetric === 'bytes' ? Math.log10(1 + v) : v);
+  function buildBars() {
+    const bars = [];
+    for (const g of state.groups) {
+      const adds = g.items.filter(p => p.kind === 'add' || p.kind === 'new');
+      const removes = g.items.filter(p => p.kind === 'remove');
+      for (const [side, items] of [['add', adds], ['remove', removes]]) {
+        if (items.length) bars.push({ bar: true, side, group: g, items, latest: items[items.length - 1], v: barValue(items) });
+      }
+    }
+    const floor = state.barMetric === 'bytes' ? barScale(5000) : 6; // the scale never tops out below this
+    const top = Math.max(floor, ...bars.map(b => barScale(b.v)));
+    const zoom = Math.min(1, clusterAlt / 2.4);
+    const r = 0.095 * clusterAlt; // bar radius in degrees: constant on screen, like the markers
+    for (const b of bars) {
+      const off = (r * 1.25) / Math.max(0.2, Math.cos((b.group.lat * Math.PI) / 180));
+      b.lat = b.group.lat;
+      b.lng = b.group.lng + (b.side === 'add' ? -off : off);
+      b.r = r;
+      b.alt = Math.max(0.004, 0.25 * zoom * (barScale(b.v) / top));
+    }
+    return bars;
+  }
+  function barTooltip(b) {
+    const n = b.items.length;
+    const fresh = b.items.filter(p => p.kind === 'new').length;
+    const bytes = b.items.reduce((s, p) => s + Math.abs(p.delta), 0);
+    const what = b.side === 'add' ? `${n} addition${n === 1 ? '' : 's'}${fresh ? ` (${fresh} new article${fresh === 1 ? '' : 's'})` : ''}` : `${n} removal${n === 1 ? '' : 's'}`;
+    const where = b.group.exact ? 'nearby' : esc(b.latest.reason);
+    const recent = b.items.slice(-4).reverse().map(d => `<li>${esc(d.title)} <span>${fmtDelta(d.delta)}</span></li>`).join('');
+    return `<div class="tip"><b>${what} · ${where}</b><span>${b.side === 'add' ? '+' : '−'}${bytes.toLocaleString()} bytes in total</span><ul>${recent}</ul><span>click to open the newest</span></div>`;
   }
 
   // ---------------- heatmap point style ----------------
@@ -368,8 +415,9 @@
     }, force ? 0 : Math.max(0, lastHeat + 8000 - Date.now()));
   }
   function setPointStyle(style) {
-    state.pointStyle = style === 'heatmap' ? 'heatmap' : 'markers';
+    state.pointStyle = ['heatmap', 'bars'].includes(style) ? style : 'markers';
     document.body.classList.toggle('points-heatmap', state.pointStyle === 'heatmap');
+    document.body.classList.toggle('points-bars', state.pointStyle === 'bars');
     $('point-style').value = state.pointStyle;
     if (state.pointStyle !== 'heatmap') world.heatmapsData([]);
     heatSig = '';
@@ -564,6 +612,7 @@
     const base = `https://${item.server}`;
     const path = encodeURIComponent(item.title.replace(/ /g, '_'));
     $('card').hidden = false;
+    renderChart(item); // after the card is visible, so the chart can measure its width
     $('card-lang').textContent = item.lang;
     $('card-time').textContent = new Date(item.time).toLocaleTimeString();
     $('card-title').textContent = item.title;
@@ -596,6 +645,58 @@
       })
       .catch(() => {});
   }
+  // Small chart in the card: additions (up) and removals (down) in this marker, in 30-second steps
+  // over the 10 minutes before the playhead. Only shown when the marker holds 2 or more edits.
+  function renderChart(item) {
+    const box = $('card-chart');
+    const g = !item.sky && !item.unplaced && groupOf(item);
+    if (!g || g.n < 2) { box.hidden = true; return; }
+    const T = clockNow(), N = 20, step = POINT_LIFE / N, start = T - POINT_LIFE;
+    const add = new Array(N).fill(0), rem = new Array(N).fill(0);
+    for (const p of g.items) {
+      const i = Math.min(N - 1, Math.max(0, Math.floor((p.time - start) / step)));
+      if (p.kind === 'add' || p.kind === 'new') add[i]++;
+      else if (p.kind === 'remove') rem[i]++;
+    }
+    const A = add.reduce((a, b) => a + b, 0), R = rem.reduce((a, b) => a + b, 0);
+    box.hidden = false;
+    box.innerHTML =
+      `<h4>Edits ${g.exact ? 'nearby' : 'at this place'} · last 10 minutes</h4>` +
+      `<div class="chart-legend"><span><i style="--c:${rgba(BAR_ADD, 1)}"></i>${A} addition${A === 1 ? '' : 's'}</span>` +
+      `<span><i style="--c:${rgba(BAR_REMOVE, 1)}"></i>${R} removal${R === 1 ? '' : 's'}</span></div>` +
+      `<div class="chart-wrap"><canvas role="img" aria-label="${A} additions and ${R} removals in the last 10 minutes"></canvas><div class="chart-tip" hidden></div></div>` +
+      `<div class="chart-axis"><span>10 min earlier</span><span>${tl.live ? 'now' : fmtClock(T)}</span></div>`;
+    const wrapEl = box.querySelector('.chart-wrap'), canvas = box.querySelector('canvas'), tip = box.querySelector('.chart-tip');
+    const dpr = window.devicePixelRatio || 1, w = wrapEl.clientWidth, h = 64, mid = h / 2;
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    const c = canvas.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const max = Math.max(1, ...add, ...rem), slot = w / N, bw = Math.max(2, slot - 2); // 2px gap between bars
+    const bar = (x, y, bh, up) => {
+      c.beginPath();
+      if (c.roundRect) c.roundRect(x, y, bw, bh, up ? [2, 2, 0, 0] : [0, 0, 2, 2]); else c.rect(x, y, bw, bh);
+      c.fill();
+    };
+    for (let i = 0; i < N; i++) {
+      const x = i * slot + 1;
+      if (add[i]) { const bh = (mid - 3) * add[i] / max; c.fillStyle = rgba(BAR_ADD, 1); bar(x, mid - 1 - bh, bh, true); }
+      if (rem[i]) { const bh = (mid - 3) * rem[i] / max; c.fillStyle = rgba(BAR_REMOVE, 1); bar(x, mid + 1, bh, false); }
+    }
+    c.fillStyle = 'rgba(255,255,255,0.22)';
+    c.fillRect(0, mid - 0.5, w, 1); // baseline
+    // Hover: the time span and counts for one 30-second step.
+    canvas.onmousemove = e => {
+      const r = canvas.getBoundingClientRect();
+      const i = Math.min(N - 1, Math.max(0, Math.floor((e.clientX - r.left) / slot)));
+      const t0 = start + i * step;
+      tip.textContent = `${fmtClock(t0)}–${fmtClock(t0 + step)} · ${add[i]} addition${add[i] === 1 ? '' : 's'}, ${rem[i]} removal${rem[i] === 1 ? '' : 's'}`;
+      tip.hidden = false;
+      tip.style.left = Math.min(Math.max(0, i * slot + slot / 2 - tip.offsetWidth / 2), w - tip.offsetWidth) + 'px';
+    };
+    canvas.onmouseleave = () => { tip.hidden = true; };
+  }
+
   // Other edits in the same marker, listed under the card.
   function renderAlsoHere(item) {
     const box = $('card-more');
@@ -817,6 +918,14 @@
   let savedStyle = 'markers';
   try { savedStyle = localStorage.getItem('wikiGlobe.pointStyle') || 'markers'; } catch (e) { /* default */ }
   setPointStyle(savedStyle);
+  $('bar-metric').onchange = e => {
+    state.barMetric = e.target.value === 'bytes' ? 'bytes' : 'count';
+    buildGroups();
+    try { localStorage.setItem('wikiGlobe.barMetric', state.barMetric); } catch (err) { /* not saved */ }
+  };
+  try { state.barMetric = localStorage.getItem('wikiGlobe.barMetric') === 'bytes' ? 'bytes' : 'count'; } catch (e) { /* default */ }
+  $('bar-metric').value = state.barMetric;
+  buildGroups();
 
   // Simulated edits, for trying things out: ?simulate=Andromeda Galaxy|Ceres (dwarf planet)|Mars
   // or __wikiGlobe.simulate('Betelgeuse') in the console. These never touch Wikipedia except to look up the article.
