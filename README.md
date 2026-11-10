@@ -34,7 +34,7 @@ __wikiGlobe.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 - **Sound**: play a note for each edit.
 - **Points**: draw edits as numbered markers (clusters with counts), as **bars** (two columns per cluster: teal for additions and new articles on the left, orange-red for removals on the right; height by number of edits or, with **Bar height**, bytes changed on a log scale), or as a thin heatmap. Bars read best near the edge of the globe, where you see them from the side. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is remembered in the browser.
 - **Follow**: turn each globe to its newest edit, at most once every 1.5 seconds (when edits arrive faster, it catches up with the latest one). Rotation pauses while Follow is on, and the camera stays put while a detail card is open.
-- **Pause stream**: disconnect from the live stream.
+- **Pause stream**: disconnect from the live stream. Resuming catches up on what was missed, up to 15 minutes, and adds those edits quietly instead of rippling them all at once.
 - **Pause rotation** buttons: one at the bottom of the Earth view and one in the sky map's header, so each globe can be stopped separately.
 - **Placed / Unplaced** tabs: placed edits, and edits that couldn't be placed, with the reason (no coordinates or related place, or a location on the surface of another body).
 - **Search** (top of the sidebar): finds edits recorded this session by title, place, language or editor, ignoring accents and letter case. It covers everything recorded, not just the rows on screen, and combines with the tabs and the **All / Exact / Approximate / Sky** filters. Esc clears it.
@@ -102,6 +102,22 @@ sound.js  optional Web Audio: larger edits play lower notes, panned by longitude
 - Every lookup is cached, and places such as cities and countries are cached permanently, so request volume drops as the cache fills.
 - The site sends at most 3 requests at a time. On HTTP 429, or a network error (a rate-limit reply without CORS headers looks like one to the browser), every request pauses for the server's `Retry-After` time or an exponential backoff, and the status line shows that lookups are being rate-limited.
 
+## Motion, background tabs and colours
+
+- With the system's **reduce motion** setting on, the globes start without rotation (the pause/play buttons still work), ripples are skipped and camera moves jump instead of gliding.
+- In a **background tab** the page keeps recording edits (and playing sound, if on) but skips ripples, titles and camera moves, so nothing piles up for when you return.
+- **Colours**: additions are teal, removals orange-red and new articles purple. The set was checked with a colour-vision validator against the page background, so it stays distinguishable with red-green colour blindness.
+
+## Tests
+
+Browser tests live in `tests/run.js`. They use simulated edits at fixed locations, so they make no Wikipedia or Wikidata lookups (the page still loads its libraries from jsDelivr):
+
+```bash
+npm install
+npx playwright install chromium
+npm test
+```
+
 ## Files
 
 | File | Purpose |
@@ -112,6 +128,8 @@ sound.js  optional Web Audio: larger edits play lower notes, panned by longitude
 | `app.js` | Stream, globe layers, ticker, card, stats, controls |
 | `sky.js` | Sky map (a second globe.gl globe) plus the astronomy helpers. Star catalogue and constellation data come from d3-celestial (BSD-3-Clause) |
 | `sound.js` | Sound |
+| `about.html` | About page |
+| `tests/run.js`, `package.json` | Browser tests (Playwright); not needed to run the site |
 
 ## Ideas for next steps
 

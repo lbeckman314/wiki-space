@@ -5,9 +5,9 @@
   --text: #e6e9f2;
   --muted: #8a93a8;
   --accent: #7aa2ff;
-  --add: #3ddc97;
-  --remove: #ff6b6b;
-  --new: #b28dff;
+  --add: #14a6a0;
+  --remove: #e2603f;
+  --new: #9a6cf0;
   --neutral: #9aa3b5;
   color-scheme: dark;
 }
@@ -163,7 +163,7 @@ a:hover { text-decoration: underline; }
 /* Cluster tooltip and legend */
 .tip ul { margin: 4px 0; padding-left: 16px; }
 .tip li { margin: 1px 0; }
-.lg-count { min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: rgba(61,220,151,.85); color: #04120b;
+.lg-count { min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: rgba(20,166,160,.9); color: #04120b;
   font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 
 /* "More edits here" list in the card */
@@ -197,7 +197,7 @@ a:hover { text-decoration: underline; }
 #tl-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.7); pointer-events: none; }
 .tl-live { flex: none; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text);
   font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
-.tl-live.on { color: #fff; border-color: rgba(255,107,107,.6); background: rgba(255,107,107,.18); }
+.tl-live.on { color: #fff; border-color: rgba(226,96,63,.6); background: rgba(226,96,63,.18); }
 .tl-live.on::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--remove);
   margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 6px var(--remove); }
 
@@ -285,3 +285,9 @@ body.points-bars .lg-markers { display: none; }
 .chart-tip { position: absolute; top: -26px; white-space: nowrap; font-size: 11px; color: var(--text); pointer-events: none;
   background: rgba(6, 9, 18, .95); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
 .chart-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* Reduced motion: no list or label animations */
+@media (prefers-reduced-motion: reduce) {
+  #ticker li { animation: none; }
+  .glabel, .skym, .skym span, #sky-wrap { transition: none; }
+}

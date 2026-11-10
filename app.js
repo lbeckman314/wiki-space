@@ -12,10 +12,10 @@
   const MAX_UNPLACED = 5000;    // unplaced edits kept for the Unplaced tab and search
   const MAX_HISTORY = 50000;    // placed edits kept in memory for the timeline
 
-  const COLORS = { add: [61, 220, 151], remove: [255, 107, 107], new: [178, 141, 255], neutral: [154, 163, 181] };
-  // Bars and the card chart use a teal / orange-red pair instead of green / red: it stays distinguishable
-  // with red-green colour blindness (checked with a CVD validator against the page background).
-  const BAR_ADD = [20, 166, 160], BAR_REMOVE = [226, 96, 63];
+  // Teal / orange-red / purple: checked with a colour-vision validator against the page background,
+  // so additions, removals and new articles stay distinguishable with red-green colour blindness.
+  const COLORS = { add: [20, 166, 160], remove: [226, 96, 63], new: [154, 108, 240], neutral: [154, 163, 181] };
+  const BAR_ADD = COLORS.add, BAR_REMOVE = COLORS.remove;
 
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -23,6 +23,14 @@
   const pad = n => String(n).padStart(2, '0');
   function fmtRA(ra) { const h = ((ra % 360) + 360) % 360 / 15; const m = (h % 1) * 60; return `${Math.floor(h)}h ${pad(Math.floor(m))}m ${pad(Math.round((m % 1) * 60) % 60)}s`; }
   function fmtDec(dec) { const a = Math.abs(dec); const m = (a % 1) * 60; return `${dec < 0 ? '−' : '+'}${Math.floor(a)}° ${pad(Math.floor(m))}′`; }
+  // Reduced motion: follow the system setting. Camera moves jump instead of gliding, ripples are skipped,
+  // and the globes start without auto-rotation (the pause/play buttons can still turn it on).
+  const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let reduceMotion = !!(motionQuery && motionQuery.matches);
+  const glide = ms => (reduceMotion ? 0 : ms);
+  // Edits older than this when they are placed (catch-up after a pause, slow lookups) are added quietly.
+  const FRESH_MS = 60e3;
+  const isFresh = item => Date.now() - item.time < FRESH_MS;
   const fmtDelta = d => (d > 0 ? '+' : d < 0 ? '−' : '±') + Math.abs(d).toLocaleString();
 
   const state = {
@@ -31,7 +39,7 @@
     pointStyle: 'markers', // or 'heatmap' or 'bars'
     barMetric: 'count',    // bar height: 'count' (edits) or 'bytes' (bytes changed, log scale)
     follow: false,
-    rotate: true,
+    rotate: !reduceMotion,
     paused: false,
     sound: false,
     unplacedList: [], // edits that could not be placed, oldest first
@@ -101,7 +109,7 @@
   // Same star catalogue as the sky map, painted as the background sphere.
   WikiSky.starfield.then(url => world.backgroundImageUrl(url));
 
-  world.controls().autoRotate = true;
+  world.controls().autoRotate = state.rotate;
   world.controls().autoRotateSpeed = 0.35;
   world.pointOfView({ lat: 25, lng: 10, altitude: 2.4 });
 
@@ -115,15 +123,26 @@
     $('status-dot').className = 'dot ' + kind;
     $('status-text').textContent = text;
   }
-  function connect() {
+  // Resuming after "Pause stream" replays what was missed (up to CATCH_UP_MAX) with the stream's ?since=.
+  // Dropped connections recover by themselves: EventSource reconnects and resumes from the last event.
+  const CATCH_UP_MAX = 15 * 60e3;
+  let pausedAt = null, catchingUp = false;
+  const seenIds = new Set(), seenOrder = [];
+  function connect(since) {
     if (es) es.close();
-    setStatus('', 'connecting…');
-    es = new EventSource(STREAM);
-    es.onopen = () => setStatus('live', 'live from Wikipedia');
+    catchingUp = !!since;
+    setStatus('', catchingUp ? 'catching up on missed edits…' : 'connecting…');
+    es = new EventSource(since ? `${STREAM}?since=${encodeURIComponent(new Date(since).toISOString())}` : STREAM);
+    es.onopen = () => { if (!catchingUp) setStatus('live', 'live from Wikipedia'); };
     es.onerror = () => setStatus('down', 'reconnecting…'); // EventSource retries on its own
     es.onmessage = onEvent;
   }
-  function disconnect() { if (es) es.close(); es = null; setStatus('down', 'paused'); }
+  function disconnect() { if (es) es.close(); es = null; pausedAt = Date.now(); setStatus('down', 'paused'); }
+  function resume() {
+    // Start a little before the pause so nothing falls in the gap; duplicates are dropped in onEvent.
+    connect(pausedAt ? Math.max(pausedAt - 5000, Date.now() - CATCH_UP_MAX) : null);
+    pausedAt = null;
+  }
 
   function accept(d) {
     if (d.bot || d.namespace !== 0) return false;
@@ -138,13 +157,22 @@
   function onEvent(e) {
     let d;
     try { d = JSON.parse(e.data); } catch { return; }
+    const id = d.meta && d.meta.id;
+    if (id) {
+      if (seenIds.has(id)) return; // already seen (catch-up overlaps the moment of pausing)
+      seenIds.add(id); seenOrder.push(id);
+      if (seenOrder.length > 20000) seenIds.delete(seenOrder.shift());
+    }
+    if (catchingUp && d.meta && Date.parse(d.meta.dt) > Date.now() - 10e3) { catchingUp = false; setStatus('live', 'live from Wikipedia'); }
     if (!accept(d)) return;
     handle(d);
   }
 
   function handle(d) {
     const lang = d.server_name.split('.')[0];
-    state.considered.push(Date.now());
+    // The per-minute rate counts edits by when they were made, so a catch-up burst doesn't inflate it.
+    state.considered.push(Math.min(Date.now(), (d.meta && Date.parse(d.meta.dt)) || Date.now()));
+    state.considered.sort((a, b) => a - b);
     WikiGeo.resolveLocation(d.server_name, d.title, lang).then(loc => {
       state.resolved++;
       if (!loc) return unplaced(d, lang, 'No coordinates, and no related place on Wikidata');
@@ -190,9 +218,11 @@
         lat: loc.dec, lng: WikiSky.raToLng(loc.ra) };
       state.sky++;
       record(item);
-      WikiSky.add(item, { quiet: !tl.live }); // while replaying, it appears when the playhead reaches it
+      // While replaying, or for old edits (catch-up), it appears without a ripple.
+      const announceNow = tl.live && isFresh(item) && !document.hidden;
+      WikiSky.add(item, { quiet: !announceNow || reduceMotion });
       addTicker(item);
-      if (tl.live && state.sound) WikiSound.play(item);
+      if (tl.live && isFresh(item) && state.sound) WikiSound.play(item);
       return;
     }
 
@@ -201,7 +231,7 @@
     loc.tier === 'exact' ? state.exact++ : state.approx++;
     record(item);
     addTicker(item);
-    if (tl.live && (item.tier === 'exact' || state.showApprox)) announce(item);
+    if (tl.live && isFresh(item) && (item.tier === 'exact' || state.showApprox)) announce(item);
   }
 
   // ---------------- history (for the timeline) ----------------
@@ -232,21 +262,20 @@
   }
 
   // Ripple, floating title, sound and Follow for one edit: on arrival when live, or when the playhead passes it.
+  // While the tab is hidden only sound plays (for people listening in the background); ripples, titles
+  // and camera moves would otherwise pile up and all appear at once when the tab comes back.
   function announce(item, { label = true, sound = true } = {}) {
-    if (item.sky) {
-      WikiSky.pulse(item);
-      if (sound && state.sound) WikiSound.play(item);
-      return;
-    }
+    if (sound && state.sound) WikiSound.play(item);
+    if (document.hidden) return;
+    if (item.sky) { WikiSky.pulse(item); return; }
     const size = Math.log10(Math.abs(item.delta) + 10); // 1 .. ~5
     const exact = item.tier === 'exact';
-    state.rings.push({
+    if (!reduceMotion) state.rings.push({
       lat: item.lat, lng: item.lng, kind: item.kind, tier: item.tier, born: Date.now(),
       maxR: exact ? 1 + size * 1.1 : item.tier === 'country' ? 5 + size : 2.5 + size,
       speed: exact ? 2.5 + size : 1.4,
     });
     dirty = true;
-    if (sound && state.sound) WikiSound.play(item);
     if (state.follow && !state.selected) followTo(item);
     if (!label) return;
 
@@ -277,7 +306,7 @@
       return;
     }
     lastFollow = Date.now();
-    world.pointOfView({ lat: item.lat, lng: item.lng, altitude: world.pointOfView().altitude }, 1000);
+    world.pointOfView({ lat: item.lat, lng: item.lng, altitude: world.pointOfView().altitude }, glide(1000));
   }
   function applyRotation() { world.controls().autoRotate = state.rotate && !state.follow && !state.selected; }
 
@@ -463,6 +492,7 @@
   // Batch globe updates to at most a few per second.
   let dirty = false, labelsDirty = false, windowDirty = false, histDirty = false, lastWindow = 0;
   setInterval(() => {
+    if (document.hidden) return; // nothing to draw; flags stay set and are handled when the tab is back
     const now = Date.now();
     const ringsBefore = state.rings.length;
     state.rings = state.rings.filter(r => now - r.born < RING_LIFE);
@@ -605,7 +635,7 @@
       computeWindow(); // includes the selected edit even if it is outside the current window
       buildGroups();
       applyRotation();
-      world.pointOfView({ lat: item.lat, lng: item.lng, altitude: Math.min(world.pointOfView().altitude, 1.6) }, 900);
+      world.pointOfView({ lat: item.lat, lng: item.lng, altitude: Math.min(world.pointOfView().altitude, 1.6) }, glide(900));
     }
     renderAlsoHere(item);
 
@@ -737,7 +767,9 @@
     $('s-sky').textContent = state.sky.toLocaleString();
     $('n-placed').textContent = state.placed.toLocaleString();
     $('n-unplaced').textContent = state.unplaced.toLocaleString();
-    if (es && es.readyState === EventSource.OPEN) {
+    if (es && es.readyState === EventSource.OPEN && catchingUp) {
+      setStatus('', 'catching up on missed edits…');
+    } else if (es && es.readyState === EventSource.OPEN) {
       WikiGeo.cooldownMs > 0 ? setStatus('', 'live · lookups rate-limited, slowing down') : setStatus('live', 'live from Wikipedia');
     }
   }, 1000);
@@ -907,13 +939,39 @@
     const latest = state.points[state.points.length - 1];
     if (state.follow && latest && !state.selected) { lastFollow = 0; followTo(latest); }
   };
-  $('t-pause').onchange = e => { state.paused = e.target.checked; state.paused ? disconnect() : connect(); };
+  $('t-pause').onchange = e => { state.paused = e.target.checked; state.paused ? disconnect() : resume(); };
   $('t-sound').onchange = e => {
     state.sound = e.target.checked;
     state.sound ? WikiSound.enable() : WikiSound.disable();
   };
 
   WikiSky.onSelect = item => select(item);
+
+  // Hidden tab: stop both globes' render loops and refresh everything when the tab comes back.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      world.pauseAnimation();
+      WikiSky.globe.pauseAnimation();
+    } else {
+      world.resumeAnimation();
+      if (view.sky) WikiSky.globe.resumeAnimation();
+      windowDirty = true;
+      dirty = true;
+    }
+  });
+  // Reduced motion: apply now, and follow the setting if it changes while the page is open.
+  WikiSky.setReducedMotion(reduceMotion);
+  if (motionQuery && motionQuery.addEventListener) {
+    motionQuery.addEventListener('change', e => {
+      reduceMotion = e.matches;
+      WikiSky.setReducedMotion(reduceMotion);
+      if (reduceMotion) state.rings = [];
+    });
+  }
+  skyRotate = !reduceMotion;
+  WikiSky.setRotate(skyRotate);
+  setRotateButton($('rot-earth'), state.rotate);
+  setRotateButton($('rot-sky'), skyRotate);
   $('point-style').onchange = e => setPointStyle(e.target.value);
   let savedStyle = 'markers';
   try { savedStyle = localStorage.getItem('wikiGlobe.pointStyle') || 'markers'; } catch (e) { /* default */ }

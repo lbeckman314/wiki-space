@@ -16,7 +16,9 @@
   const DATA = 'https://cdn.jsdelivr.net/npm/d3-celestial@0.7.35/data/';
   const MAX_SKY_ITEMS = 200;
   const RING_LIFE = 4000;
-  const COLORS = { add: [61, 220, 151], remove: [255, 107, 107], new: [178, 141, 255], neutral: [154, 163, 181] };
+  // Teal / orange-red / purple: checked with a colour-vision validator against the page background,
+  // so additions, removals and new articles stay distinguishable with red-green colour blindness.
+  const COLORS = { add: [20, 166, 160], remove: [226, 96, 63], new: [154, 108, 240], neutral: [154, 163, 181] };
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
   const rad = d => (d * Math.PI) / 180, deg = r => (r * 180) / Math.PI;
   const mod360 = x => ((x % 360) + 360) % 360;
@@ -135,6 +137,8 @@
   let onSelect = () => {};
   let follow = false;
   let rotate = true;
+  let reduceMotion = false;
+  const glide = ms => (reduceMotion ? 0 : ms);
   let lastFollow = 0;
 
   const sky = new Globe(el, { animateIn: false })
@@ -232,6 +236,7 @@
     refresh();
   }
   function ripple(item) {
+    if (reduceMotion) return;
     const size = Math.log10(Math.abs(item.delta) + 10);
     const exact = item.tier === 'exact';
     rings.push({ lat: item.lat, lng: item.lng, kind: item.kind, tier: item.tier, born: Date.now(),
@@ -284,7 +289,7 @@
       return;
     }
     lastFollow = Date.now();
-    sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: sky.pointOfView().altitude }, 1000);
+    sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: sky.pointOfView().altitude }, glide(1000));
   }
   function applyRotation() { sky.controls().autoRotate = rotate && !follow && !selected; }
   function setFollow(on) {
@@ -299,13 +304,14 @@
     selected = item;
     if (item && item.el) item.el.classList.add('sel');
     if (item) {
-      sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: Math.min(sky.pointOfView().altitude, 1.8) }, 900);
+      sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: Math.min(sky.pointOfView().altitude, 1.8) }, glide(900));
     }
     applyRotation();
   }
 
   window.WikiSky = {
     planetPosition, orbitPosition, parseEpoch, constellationCentre, raToLng,
+    setReducedMotion(on) { reduceMotion = !!on; if (on) rings = []; },
     add, pulse, setCutoff, focus, setFollow, setRotate, starfield,
     set onSelect(fn) { onSelect = fn; },
     globe: sky,
