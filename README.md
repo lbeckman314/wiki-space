@@ -1,4 +1,4 @@
-# Wiki Globe
+# Wiki Space
 
 Live, non-bot edits to Wikipedia articles, shown on a 3D globe as they happen. Edits to astronomy articles (stars, galaxies, planets, asteroids) appear on a separate sky map.
 
