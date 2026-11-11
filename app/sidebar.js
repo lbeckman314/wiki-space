@@ -65,7 +65,7 @@ function setFilter(name) {
 }
 
 // ---------------- show / hide panels ----------------
-const VIEW_NAMES = { sidebar: 'the sidebar', sky: 'the sky map', timeline: 'the timeline' };
+const VIEW_NAMES = { sidebar: 'the sidebar', sky: 'the sky map' };
 export function setView(part, on) {
   view[part] = on;
   document.body.classList.toggle('hide-' + part, !on);
@@ -74,7 +74,7 @@ export function setView(part, on) {
   btn.title = (on ? 'Hide ' : 'Show ') + VIEW_NAMES[part];
   btn.setAttribute('aria-label', btn.title);
   if (part === 'sky') on ? WikiSky.globe.resumeAnimation() : WikiSky.globe.pauseAnimation(); // no drawing while hidden
-  setUrlParam(part, on ? '1' : '0', DEFAULTS[part] ? '1' : '0'); // ?sidebar=0, ?sky=1, ?timeline=1
+  setUrlParam(part, on ? '1' : '0', DEFAULTS[part] ? '1' : '0'); // ?sidebar=0, ?sky=1
 }
 
 export function initSidebar() {
@@ -113,4 +113,57 @@ export function initSidebar() {
     $('toggle-' + part).onclick = () => setView(part, !view[part]);
     setView(part, view[part]);
   }
+  initResize();
+}
+
+// Sidebar size: drag its edge (left edge on desktop, top edge on phones), or focus it and use the arrow keys.
+// Double-click (or Home) goes back to the default size. Not saved: a reload opens the default size.
+const phone = matchMedia('(max-width: 760px)');
+function initResize() {
+  const panel = $('panel'), handle = $('panel-resize');
+  const limits = () => phone.matches
+    ? { min: 120, max: Math.max(120, innerHeight - 240) }       // keep some of the globe in view
+    : { min: 280, max: Math.max(280, Math.min(innerWidth - 320, 900)) };
+  const prop = () => (phone.matches ? '--panel-h' : '--panel-w');
+  const size = () => (phone.matches ? panel.offsetHeight : panel.offsetWidth);
+  const label = () => {
+    const { min, max } = limits();
+    handle.setAttribute('aria-orientation', phone.matches ? 'horizontal' : 'vertical');
+    handle.setAttribute('aria-valuemin', min); handle.setAttribute('aria-valuemax', max);
+    handle.setAttribute('aria-valuenow', Math.round(size()));
+  };
+  const set = px => {
+    const { min, max } = limits();
+    panel.style.setProperty(prop(), Math.round(Math.min(max, Math.max(min, px))) + 'px');
+    label();
+  };
+  const reset = () => { panel.style.removeProperty('--panel-w'); panel.style.removeProperty('--panel-h'); label(); };
+
+  let start = null;
+  handle.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    start = { x: e.clientX, y: e.clientY, size: size() };
+    document.body.classList.add('resizing');
+  });
+  handle.addEventListener('pointermove', e => {
+    if (!start) return;
+    // The panel grows as its edge moves away from it: left on desktop, up on phones.
+    set(start.size + (phone.matches ? start.y - e.clientY : start.x - e.clientX));
+  });
+  const end = () => { start = null; document.body.classList.remove('resizing'); };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+  handle.addEventListener('dblclick', reset);
+  handle.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 80 : 20;
+    const grow = phone.matches ? { ArrowUp: 1, ArrowDown: -1 } : { ArrowLeft: 1, ArrowRight: -1 };
+    if (e.key in grow) { e.preventDefault(); set(size() + grow[e.key] * step); }
+    else if (e.key === 'Home') { e.preventDefault(); reset(); }
+  });
+  // Keep a dragged size inside the window when the window shrinks; switching layouts starts from the default.
+  addEventListener('resize', () => { if (panel.style.getPropertyValue(prop())) set(size()); else label(); });
+  phone.addEventListener('change', reset);
+  label();
 }

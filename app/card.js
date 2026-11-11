@@ -3,7 +3,7 @@
 import { $, POINT_LIFE, COLORS, BAR_ADD, BAR_REMOVE, esc, rgba, fmtRA, fmtDec, fmtDelta, fmtClock, glide, state, flags, view, tl, clockNow } from './core.js';
 import { world, applyRotation } from './globe.js';
 import { buildGroups, groupOf } from './points.js';
-import { computeWindow } from './timeline.js';
+import { computeWindow } from './history.js';
 import { setView } from './sidebar.js';
 
 export function select(item) {

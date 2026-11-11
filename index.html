@@ -46,30 +46,6 @@
       </section>
 
 
-      <section id="timeline" aria-label="Timeline">
-        <button id="tl-start" class="tl-btn" title="Jump to the start of the recording" aria-label="Jump to start">
-          <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.5" y="2" width="1.8" height="8" rx=".5"/><path d="M10 2.3v7.4c0 .5-.5.7-.9.5L4 6.5c-.4-.3-.4-.7 0-1l5.1-3.7c.4-.3.9 0 .9.5z"/></svg>
-        </button>
-        <button id="tl-play" class="tl-btn" title="Pause" aria-label="Pause"><svg viewBox="0 0 12 12" aria-hidden="true"></svg></button>
-        <select id="tl-speed" title="Playback speed" aria-label="Playback speed">
-          <option value="1">1×</option>
-          <option value="10">10×</option>
-          <option value="60" selected>60×</option>
-          <option value="600">600×</option>
-          <option value="3600">3600×</option>
-        </select>
-        <div class="tl-mid">
-          <div id="tl-time">Live</div>
-          <div id="tl-track" role="slider" tabindex="0" aria-label="Playhead (arrow keys: ±1 minute, Shift: ±10 minutes)">
-            <canvas id="tl-hist"></canvas>
-            <div id="tl-played"></div>
-            <div id="tl-head"></div>
-          </div>
-        </div>
-        <button id="tl-live" class="tl-live on" title="Return to the live stream">Live</button>
-      </section>
-      <button id="toggle-timeline" class="tl-btn toggle" aria-controls="timeline" aria-expanded="true"><svg class="ico chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button>
-
       <div id="corner">
       <section id="legend" aria-label="Legend">
         <div class="lg-pick" id="point-style" role="group" aria-label="Show edits as">
@@ -100,6 +76,7 @@
     </main>
 
     <aside id="panel">
+      <div id="panel-resize" role="separator" tabindex="0" aria-controls="panel" aria-label="Resize sidebar" title="Drag to resize · double-click to reset"></div>
       <button id="toggle-sidebar" class="icon-btn toggle" aria-controls="panel" aria-expanded="true"><svg class="ico chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></button>
       <div id="controls">
         <label>Wikis

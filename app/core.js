@@ -11,7 +11,7 @@ export const LABEL_LIFE = 6000;
 export const MAX_LABELS = 6;
 export const MAX_TICKER = 60;
 export const MAX_UNPLACED = 5000;    // unplaced edits kept for the Unplaced tab and search
-export const MAX_HISTORY = 50000;    // placed edits kept in memory for the timeline
+export const MAX_HISTORY = 50000;    // placed edits kept in memory (the list and the globe's window)
 
 // Teal / orange-red / purple: checked with a colour-vision validator against the page background,
 // so additions, removals and new articles stay distinguishable with red-green colour blindness.
@@ -63,12 +63,11 @@ export const isFresh = item => Date.now() - item.time < FRESH_MS;
 
 // ---------------- defaults ----------------
 // What the page shows with nothing saved and nothing in the address. Each key is also the address parameter
-// (?sidebar=0, ?sky=1, ?timeline=1, ?points=markers, ?height=bytes, ?wikis=en); values equal to these are
+// (?sidebar=0, ?sky=1, ?points=markers, ?height=bytes, ?wikis=en); values equal to these are
 // left out of the address. Change a default here and nowhere else.
 export const DEFAULTS = {
   sidebar: true,   // panels: shown or hidden
   sky: false,
-  timeline: false,
   points: 'bars',  // 'bars', 'markers' or 'heatmap'
   height: 'edits', // bar height: 'edits' or 'bytes'
   wikis: 'en',    // 'top' (top 20 languages), 'en' or 'all'
@@ -102,16 +101,16 @@ export const flags = {
   dirty: false,        // a ripple was added: re-cluster and re-send rings
   labelsDirty: false,  // a floating title was added: re-send the label layer
   windowDirty: false,  // the edits on screen changed (new edit, playhead moved)
-  histDirty: false,    // the timeline's activity chart needs redrawing
   listDirty: true,     // the sidebar list needs rebuilding
 };
 
-// Timeline playhead. In live mode the globes show "now"; otherwise they show tl.t (see timeline.js).
+// The moment the globes show. Always live ("now") since the timeline bar was removed; tl.t is kept so a
+// playhead can come back without touching the rest of the app.
 export const tl = { live: true, playing: true, t: Date.now(), speed: 60, dragging: false, lastWall: performance.now(), lastLabel: 0 };
 export function clockNow() { return tl.live ? Date.now() : tl.t; }
 
 // Which panels are shown (see sidebar.js).
-export const view = { sidebar: DEFAULTS.sidebar, sky: DEFAULTS.sky, timeline: DEFAULTS.timeline };
+export const view = { sidebar: DEFAULTS.sidebar, sky: DEFAULTS.sky };
 
 // First index in state.history whose edit time is after t (history is ordered by time).
 export function upperBound(t) {

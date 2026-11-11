@@ -83,8 +83,8 @@ async function main() {
       });
       check('nearby edits merge into clusters', groups === 'approx:4 exact:5', groups);
       check('sky edit goes to the sky map', await page.evaluate(() => __wikiSpace.state.sky === 1));
-      const listed = await waitFor(page, () => document.querySelectorAll('#ticker li .t').length === 10 || document.querySelectorAll('#ticker li .t').length);
-      check('placed list shows all placed edits', listed === true, `rows: ${listed}`);
+      const listed = await waitFor(page, () => document.querySelectorAll('#ticker li .t').length === 10); // the list redraws every 0.4 s
+      check('placed list shows all placed edits', !!listed, `rows: ${await page.evaluate(() => document.querySelectorAll('#ticker li .t').length)}`);
       await page.click('#stats button[data-filter="approx"]');
       check('"approximate" stat filters the list', JSON.stringify(await rows(page)) === JSON.stringify(['US topic 3', 'US topic 2', 'US topic 1', 'US topic 0']));
       await page.click('#filters button[data-filter="all"]');
@@ -132,37 +132,62 @@ async function main() {
       await page.context().close();
     }
 
-    console.log('Timeline');
+    console.log('History window');
     {
-      const page = await openPage(browser, base, { query: '?timeline=1' }); // hidden by default
+      const page = await openPage(browser, base);
       await page.evaluate(() => {
         const now = Date.now();
         for (let i = 0; i < 40; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 10, lng: i, time: now - (40 - i) * 45e3 });
       });
       const live = await waitFor(page, () => __wikiSpace.state.points.length > 0 && __wikiSpace.state.points.length);
-      check('live view shows only the last 10 minutes', live > 0 && live <= 14, String(live));
-      const box = await page.locator('#tl-track').boundingBox();
-      await page.click('#tl-play'); // pause (freezes "now")
-      await page.mouse.click(box.x + box.width * 0.1, box.y + box.height / 2);
-      // Wait for the result itself: pausing alone already shows "Go live", before the scrub lands.
-      const replay = await waitFor(page, () => __wikiSpace.state.points.length > 0 && __wikiSpace.state.points[0].title === 'Edit 0');
-      const shown = await page.evaluate(() => (__wikiSpace.state.points[0] || {}).title);
-      check('scrubbing back shows older edits', !!replay, `oldest shown: ${shown}`);
-      await page.click('#tl-live');
-      check('Live button returns to live', !!(await waitFor(page, () => document.getElementById('tl-live').textContent === 'Live')));
+      check('the globe shows only the last 10 minutes', live > 0 && live <= 14, String(live));
+      check('older edits stay in history', await page.evaluate(() => __wikiSpace.state.history.length >= 40));
+      check('no timeline bar', await page.evaluate(() => !document.getElementById('timeline') && !document.getElementById('toggle-timeline')));
       check('no page errors', page.errors.length === 0, page.errors.join(' | '));
       await page.context().close();
     }
 
+    console.log('Resizing the sidebar');
+    {
+      const page = await openPage(browser, base);
+      const before = await page.evaluate(() => document.getElementById('panel').offsetWidth);
+      const h = await page.locator('#panel-resize').boundingBox();
+      await page.mouse.move(h.x + h.width / 2, h.y + 200);
+      await page.mouse.down();
+      await page.mouse.move(h.x + h.width / 2 - 150, h.y + 200, { steps: 4 });
+      await page.mouse.up();
+      const wide = await waitFor(page, () => document.getElementById('panel').offsetWidth);
+      check('dragging the left edge widens the sidebar', Math.abs(wide - (before + 150)) <= 4, `${before} → ${wide}`);
+      await page.focus('#panel-resize');
+      await page.keyboard.press('ArrowRight');
+      check('arrow keys resize it', await page.evaluate(w => document.getElementById('panel').offsetWidth === w - 20, wide));
+      await page.dblclick('#panel-resize');
+      check('double-click goes back to the default width', await page.evaluate(b => document.getElementById('panel').offsetWidth === b, before));
+      check('no page errors', page.errors.length === 0, page.errors.join(' | '));
+      await page.context().close();
+
+      const phone = await openPage(browser, base, { viewport: { width: 390, height: 800 } });
+      const ph = await phone.evaluate(() => document.getElementById('panel').offsetHeight);
+      const g = await phone.locator('#panel-resize').boundingBox();
+      await phone.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+      await phone.mouse.down();
+      await phone.mouse.move(g.x + g.width / 2, g.y + g.height / 2 - 120, { steps: 4 });
+      await phone.mouse.up();
+      const tall = await phone.evaluate(() => document.getElementById('panel').offsetHeight);
+      check('phones: dragging the top edge makes the sidebar taller', Math.abs(tall - (ph + 120)) <= 4, `${ph} → ${tall}`);
+      check('no page errors', phone.errors.length === 0, phone.errors.join(' | '));
+      await phone.context().close();
+    }
+
     console.log('Panels, follow and reduced motion');
     {
-      const page = await openPage(browser, base, { query: '?timeline=1' });
-      await page.click('#toggle-sidebar'); await page.click('#toggle-timeline');
+      const page = await openPage(browser, base);
+      await page.click('#toggle-sidebar');
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitFor(page, () => !!window.__wikiSpace);
       check('hidden panels stay hidden after a reload', await page.evaluate(() =>
-        document.getElementById('panel').offsetWidth === 0 && getComputedStyle(document.getElementById('timeline')).display === 'none'));
-      await page.click('#toggle-sidebar'); await page.click('#toggle-timeline');
+        document.getElementById('panel').offsetWidth === 0));
+      await page.click('#toggle-sidebar');
       await page.evaluate(() => { const p = document.getElementById('t-pause'); if (!p.checked) p.click(); });
       await page.click('#t-follow');
       await sim(page, 'Sydney', { lat: -33.86, lng: 151.21 });
@@ -185,9 +210,8 @@ async function main() {
     console.log('Defaults and settings in the address');
     {
       const page = await openPage(browser, base);
-      check('defaults: sidebar open, sky map folded, timeline hidden, bars', await page.evaluate(() =>
+      check('defaults: sidebar open, sky map folded, bars', await page.evaluate(() =>
         !document.body.classList.contains('hide-sidebar') && document.body.classList.contains('hide-sky') &&
-        document.body.classList.contains('hide-timeline') &&
         document.querySelector('#point-style [data-style=bars]').getAttribute('aria-pressed') === 'true'));
       check('defaults leave the address clean', await page.evaluate(() => location.search === ''), await page.evaluate(() => location.search));
       await page.click('#status');

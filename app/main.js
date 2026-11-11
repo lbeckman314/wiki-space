@@ -3,7 +3,7 @@
 import { $, RING_LIFE, LABEL_LIFE, motionQuery, motion, state, flags, tl, view, DEFAULTS, urlParam, setUrlParam } from './core.js';
 import { world, initGlobe, applyRotation, followNow, watchHover } from './globe.js';
 import { initPoints, buildGroups, setPointStyle, zoomChanged } from './points.js';
-import { initTimeline, computeWindow } from './timeline.js';
+import { computeWindow } from './history.js';
 import { connect, disconnect, resume, streamState, setStatus, simulate } from './stream.js';
 import { initSidebar } from './sidebar.js';
 import { initCard, select } from './card.js';
@@ -13,7 +13,6 @@ initGlobe();
 initPoints();
 initSidebar();
 initCard();
-initTimeline();
 initApiPanel();
 
 // ---------------- update loops ----------------

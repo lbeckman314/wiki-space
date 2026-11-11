@@ -46,10 +46,9 @@ a:hover { text-decoration: underline; }
 #stats b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 600; }
 #stats span { color: var(--muted); font-size: 11px; }
 
-/* Bottom-left stack: legend, then Pause rotation. Sits above the timeline, or at the bottom when it's hidden. */
-#corner { position: absolute; left: 16px; bottom: 72px; z-index: 1; display: flex; flex-direction: column;
-  align-items: flex-start; gap: 8px; transition: bottom .3s; }
-body.hide-timeline #corner { bottom: 16px; }
+/* Bottom-left stack: legend, then Pause rotation. */
+#corner { position: absolute; left: 16px; bottom: 16px; z-index: 1; display: flex; flex-direction: column;
+  align-items: flex-start; gap: 8px; }
 #legend { background: rgba(8, 11, 20, 0.7);
   border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px;
   color: var(--muted); backdrop-filter: blur(6px); }
@@ -61,7 +60,7 @@ body.hide-timeline #corner { bottom: 16px; }
   width: 14px; height: 14px; margin: -2px; }
 
 /* Side panel */
-#panel { width: 360px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
+#panel { width: var(--panel-w, 360px); flex: none; background: var(--panel); border-left: 1px solid var(--line);
   display: flex; flex-direction: column; min-height: 0; }
 #controls { padding: 14px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
 #controls select { margin-left: 8px; background: #141a2b; color: var(--text); border: 1px solid var(--line);
@@ -116,12 +115,11 @@ body.hide-timeline #corner { bottom: 16px; }
 
 @media (max-width: 760px) {
   #app { flex-direction: column; }
-  #panel { width: auto; height: 42%; border-left: 0; border-top: 1px solid var(--line); }
+  #panel { width: auto; height: var(--panel-h, 42%); border-left: 0; border-top: 1px solid var(--line); }
   #card { max-height: 70%; }
   #stats { gap: 12px; top: 68px; left: 16px; right: auto; text-align: left; }
   #stats b { font-size: 16px; }
-  #corner { left: 10px; bottom: 66px; }
-  body.hide-timeline #corner { bottom: 10px; }
+  #corner { left: 10px; bottom: 10px; }
   #legend { padding: 6px; }
   #legend .lg-row, #legend .lg-sep { display: none !important; }
 }
@@ -132,7 +130,7 @@ body.hide-timeline #corner { bottom: 16px; }
   position: absolute; right: 16px; top: 72px; width: var(--sky-w); height: var(--sky-h); border-radius: 14px;
   border: 1px solid var(--line); background: radial-gradient(circle at 50% 50%, #0b1230 0%, #060914 70%);
   overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.5); transition: width .3s, height .3s; }
-#sky-wrap.big { --sky-w: min(70%, 760px); --sky-h: min(calc(100% - 152px), 760px); } /* clears the timeline */
+#sky-wrap.big { --sky-w: min(70%, 760px); --sky-h: min(calc(100% - 152px), 760px); }
 #sky { position: absolute; inset: 0; }
 .sky-head { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px;
   padding: 7px 8px 7px 12px; font-size: 12px; color: var(--muted); pointer-events: none;
@@ -200,30 +198,6 @@ body.hide-timeline #corner { bottom: 16px; }
 @media (max-width: 760px) {
 }
 
-/* Timeline */
-#timeline { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px 10px; background: linear-gradient(rgba(6,9,18,0), rgba(6,9,18,.85) 35%); }
-.tl-btn { flex: none; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255,255,255,.06);
-  color: var(--text); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
-.tl-btn svg { width: 12px; height: 12px; fill: currentColor; }
-.tl-btn:hover, .tl-live:hover { border-color: rgba(255,255,255,.3); }
-#tl-speed { flex: none; background: #141a2b; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 4px 4px; font: inherit; font-size: 12px; }
-.tl-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-#tl-time { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#tl-track { position: relative; height: 26px; border-radius: 6px; background: rgba(255,255,255,.05); cursor: pointer; touch-action: none; overflow: hidden; }
-#tl-track:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-#tl-hist { position: absolute; inset: 0; width: 100%; height: 100%; }
-#tl-played { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(122,162,255,.12); pointer-events: none; }
-#tl-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.7); pointer-events: none; }
-.tl-live { flex: none; border-radius: 999px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text);
-  font: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
-.tl-live.on { color: #fff; border-color: rgba(226,96,63,.6); background: rgba(226,96,63,.18); }
-.tl-live.on::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--remove);
-  margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 6px var(--remove); }
-
-@media (max-width: 760px) {
-  #timeline { padding: 6px 10px 8px; gap: 6px; }
-  #tl-start { display: none; }
 }
 
 
@@ -269,17 +243,11 @@ body.hide-timeline #corner { bottom: 16px; }
 body.hide-sidebar #toggle-sidebar .chev { transform: rotate(90deg); } /* ‹ brings it back */
 #toggle-sky .chev { transform: rotate(180deg); }                      /* ⌃ rolls the map up into its header */
 body.hide-sky #toggle-sky .chev { transform: none; }
-#toggle-timeline { position: absolute; right: 16px; bottom: 8px; z-index: 1; }
-#toggle-timeline .chev { transform: none; }                           /* ⌄ drops the bar */
-body.hide-timeline #toggle-timeline .chev { transform: rotate(180deg); }
-#timeline { padding-right: 54px; }
 
 @media (max-width: 760px) {
   /* The sidebar sits under the globe on phones, so its chevron points down/up. */
   #toggle-sidebar .chev { transform: none; }
   body.hide-sidebar #toggle-sidebar .chev { transform: rotate(180deg); }
-  #toggle-timeline { right: 10px; bottom: 6px; }
-  #timeline { padding-right: 46px; }
 }
 
 /* Stats are buttons that filter the sidebar list */
@@ -306,7 +274,6 @@ body.hide-timeline #toggle-timeline .chev { transform: rotate(180deg); }
 body.hide-sidebar #panel > :not(#toggle-sidebar) { display: none; }
 body.hide-sidebar #panel { width: 0; border-left: 0; }  /* its right edge, and so the chevron, stays put */
 body.hide-sidebar #stats { right: 52px; }
-body.hide-timeline #timeline { display: none; }
 /* The sky map rolls up into its header: bottom grows as height shrinks, so the header doesn't move. */
 body.hide-sky #sky-wrap { width: 130px; height: var(--sky-head); }
 body.hide-sky .sky-head { background: rgba(6,9,20,.85); }
@@ -319,6 +286,21 @@ body.hide-sky .sky-head span:first-child { flex: 1; }
   body.hide-sidebar #stats { right: auto; }
   body.hide-sidebar #panel::before { content: 'Sidebar'; padding: 13px 16px; font-size: 13px; color: var(--muted); }
   body.hide-sky #sky-wrap { width: 110px; }
+}
+
+/* Sidebar resize handle: its left edge on desktop, its top edge (with a grip) on phones. */
+#panel-resize { position: absolute; z-index: 3; top: 0; bottom: 0; left: -5px; width: 10px; cursor: col-resize;
+  touch-action: none; outline: none; }
+#panel-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent;
+  transition: background .15s; }
+#panel-resize:hover::after, #panel-resize:focus-visible::after, body.resizing #panel-resize::after { background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
+body.resizing #globe, body.resizing #sky { pointer-events: none; }  /* the drag stays on the handle */
+@media (max-width: 760px) {
+  #panel-resize { top: -11px; bottom: auto; left: 56px; right: 56px; width: auto; height: 22px; cursor: row-resize; }
+  #panel-resize::after { top: 9px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px;
+    background: rgba(255,255,255,.28); }
+  body.resizing { cursor: row-resize; }
 }
 
 /* Point style */

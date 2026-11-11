@@ -1,6 +1,6 @@
 // The live edit stream, and turning each edit into a placed (or unplaced) item.
 import { $, STREAM, TOP_WIKIS, MAX_UNPLACED, motion, isFresh, state, flags, tl } from './core.js';
-import { record } from './timeline.js';
+import { record } from './history.js';
 import { announce } from './globe.js';
 
 let es = null;
@@ -92,7 +92,7 @@ function makeItem(d, lang) {
   const newLen = (d.length && d.length.new) || 0;
   const delta = newLen - oldLen;
   const kind = d.type === 'new' ? 'new' : delta > 0 ? 'add' : delta < 0 ? 'remove' : 'neutral';
-  // When the edit was made (not when its location was found), so the timeline replays in true order.
+  // When the edit was made (not when its location was found), so history stays in true order.
   const made = (d.meta && Date.parse(d.meta.dt)) || (d.timestamp && d.timestamp * 1000) || Date.now();
   return {
     id: ++seq, time: Math.min(made, Date.now()), kind, delta, lang,
@@ -141,7 +141,7 @@ export function simulate(title, lang = 'en', at) {
   const d = { type: 'edit', namespace: 0, title, server_name: `${lang}.wikipedia.org`, user: '(simulated)',
     comment: 'Simulated edit', length: { old: 1000, new: 1000 + Math.round(Math.random() * 600 - 200) },
     revision: {}, simulated: true };
-  if (at && at.time) d.meta = { dt: new Date(at.time).toISOString() }; // backdate, e.g. to fill the timeline
+  if (at && at.time) d.meta = { dt: new Date(at.time).toISOString() }; // backdate, e.g. to test the 10-minute window
   if (!at) return handle(d);
   state.considered.push(Date.now());
   state.resolved++;
