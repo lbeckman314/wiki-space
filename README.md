@@ -3,7 +3,6 @@
 Live, non-bot edits to Wikipedia articles, shown on a 3D globe as they happen. Edits to astronomy articles (stars, galaxies, planets, asteroids) appear on a separate sky map.
 
 ![Wiki Space: live English Wikipedia edits as bars on the globe, the sky map, and the list of recent edits](screenshot.png)
-![sky map](screenshot-sky.png)
 
 ## Run it
 
