@@ -138,7 +138,7 @@ python3 -m http.server 8000</code></pre>
     <pre><code>for (let i = 0; i &lt; 60; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })</code></pre>
     <h3>If lookups stall</h3>
     <p>Wikimedia limits how many requests each IP address can make across all its sites, and every open tab of this page (plus your
-      own Wikipedia browsing) shares that limit. The page sends at most one lookup a second, packing many articles into each one.
+      own Wikipedia browsing) shares that limit. The page sends at most one lookup every 2 seconds (one every 10 seconds while its tab is in the background), packing many articles into each one.
       If it falls behind or Wikipedia asks it to wait, the status line says so. New edits keep arriving and are placed once lookups
       catch up. Closing extra tabs of the page helps, and so does avoiding shared networks such as cloud machines.</p>
 

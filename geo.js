@@ -31,8 +31,12 @@
   ];
 
   const BATCH = 50;
-  const GAP_MS = 1000;      // at most one request a second (60/min). Wikimedia's limit is per IP address, across
-                            // all its sites, and measured at roughly 80/min in 2026; other tabs share it too.
+  // Pace: one request every 2 s (30/min) while the page is visible, one every 10 s (6/min) in a background tab.
+  // Wikimedia's limit is per IP address across all its sites, measured at roughly 80/min in 2026, and other
+  // tabs and people on the same address share it, so we stay well under. Batches simply get fuller.
+  const GAP_MS = 2000;
+  const HIDDEN_GAP_MS = 10000;
+  const gap = () => (document.hidden ? HIDDEN_GAP_MS : GAP_MS);
   const MIN_AGE_MS = 1200;  // let a batch collect titles for at least this long before sending it
   const MAX_INFLIGHT = 3;
   const MAX_RETRIES = 3;
@@ -41,17 +45,19 @@
 
   // ---------- request pacing ----------
   // One shared cooldown: a 429's Retry-After counts down the same window on every Wikimedia site, so after one
-  // 429 there's no point asking another wiki. Requests are spaced GAP_MS apart, so a backlog never goes out
+  // 429 there's no point asking another wiki. Requests are spaced gap() apart, so a backlog never goes out
   // as a burst when the window reopens.
   let cooldownUntil = 0;
   let lastSent = 0;
   let inflight = 0;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
-  const turnWait = () => Math.max(cooldownUntil, lastSent + GAP_MS) - Date.now();
+  const turnWait = () => Math.max(cooldownUntil, lastSent + gap()) - Date.now();
+  // Sleep in short steps so a tab coming back to the front speeds up within a second.
+  const nap = ms => sleep(Math.min(ms, 1000));
   let gateChain = Promise.resolve();
   function takeTurn() { // resolves when it's our turn to send; turns are handed out one at a time, in order
     const p = gateChain.then(async () => {
-      for (let w; (w = turnWait()) > 0;) await sleep(w);
+      for (let w; (w = turnWait()) > 0;) await nap(w);
       lastSent = Date.now();
     });
     gateChain = p;
@@ -128,7 +134,7 @@
       while (queues.size) {
         if (inflight >= MAX_INFLIGHT) { await sleep(100); continue; }
         const w = turnWait();
-        if (w > 0) { await sleep(w); continue; }
+        if (w > 0) { await nap(w); continue; }
         const { q, wait } = nextQueue(Date.now());
         if (!q) { await sleep(wait); continue; }
         lastSent = Date.now(); // this is our turn (the gate isn't held: retries queue behind it)
@@ -172,7 +178,9 @@
     const now = Date.now();
     return {
       ...lookupStatus(),
-      pacePerMin: Math.round(60e3 / GAP_MS),
+      pacePerMin: Math.round(60e3 / gap()),
+      hiddenPacePerMin: Math.round(60e3 / HIDDEN_GAP_MS),
+      hidden: document.hidden,
       batchMax: BATCH,
       sentLastMin: lastMinute(stats.sent, now),
       inflight,

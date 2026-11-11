@@ -52,7 +52,7 @@ function render() {
     <dl>
       <dt>Status</dt><dd>${wait}</dd>
       <dt>Pace</dt><dd>${meter(g.sentLastMin, WIKIMEDIA_LIMIT)} ${n(g.sentLastMin)} requests in the last minute.
-        We send at most ${g.pacePerMin} a minute. Wikimedia allows about ${WIKIMEDIA_LIMIT} per IP address, shared with your other tabs.</dd>
+        We send at most ${g.pacePerMin} a minute${g.hidden ? ' while this tab is in the background' : ` (${g.hiddenPacePerMin} in a background tab)`}. Wikimedia allows about ${WIKIMEDIA_LIMIT} per IP address, shared with your other tabs.</dd>
       <dt>Rate-limited</dt><dd>${limited}</dd>
       <dt>Waiting</dt><dd>${waitingItems ? `${n(waitingItems)} lookups in ${g.waiting.length} batch${g.waiting.length > 1 ? 'es' : ''} · oldest ${secs(g.behindMs)}` : 'Nothing waiting'}
         ${waitRows ? `<ul class="api-list">${waitRows}</ul>` : ''}</dd>
