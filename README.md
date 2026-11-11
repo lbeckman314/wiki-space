@@ -35,34 +35,18 @@ __wikiSpace.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 
 - **Approximate**: show or hide edits placed through a related place on Wikidata.
 - **Sound**: play a note for each edit.
-- **Points**: draw edits as numbered markers (clusters with counts), as **bars** (two columns per cluster: teal for additions and new articles on the left, orange-red for removals on the right; height by number of edits or, with **Bar height**, bytes changed on a log scale), or as a thin heatmap. Bars read best near the edge of the globe, where you see them from the side. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is remembered in the browser.
+- **Points**: draw edits as numbered markers (clusters with counts), as **bars** (two columns per cluster: teal for additions and new articles on the left, orange-red for removals on the right; height by number of edits or, with **Bar height**, bytes changed on a log scale), or as a thin heatmap. Bars read best near the edge of the globe, where you see them from the side. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is kept in the address (`?points=markers`).
 - **Follow**: turn each globe to its newest edit, at most once every 1.5 seconds (when edits arrive faster, it catches up with the latest one). Rotation pauses while Follow is on, and the camera stays put while a detail card is open.
 - **Pause stream**: disconnect from the live stream. Resuming catches up on what was missed, up to 15 minutes, and adds those edits quietly instead of rippling them all at once.
 - **Pause rotation** buttons: one at the bottom of the Earth view and one in the sky map's header, so each globe can be stopped separately.
 - **Placed / Unplaced** tabs: placed edits, and edits that couldn't be placed, with the reason (no coordinates or related place, or a location on the surface of another body).
 - **Search** (top of the sidebar): finds edits recorded this session by title, place, language or editor, ignoring accents and letter case. It covers everything recorded, not just the rows on screen, and combines with the tabs and the **All / Exact / Approximate / Sky** filters. Esc clears it.
 - **Stats** at the top right: click placed, exact, approximate or in the sky to list those edits in the sidebar.
-- **Sidebar / Sky map / Timeline** buttons under the title show or hide each panel, and the choice is remembered in the browser. A hidden sky map stops drawing. Opening an edit's card shows the sidebar again.
+- **Chevrons** in the corner of the sidebar and sky map show or hide each panel; the choice is kept in the address (`?sidebar=0`, `?sky=1`). A hidden sky map stops drawing. Opening an edit's card shows the sidebar again.
+- **Resize the sidebar** by dragging its left edge (on phones, the grip on its top edge). With the edge focused, the arrow keys resize it too (Shift for bigger steps); double-click or Home goes back to the default size.
 - **About** (`about.html`): how it works, how it was built, how to run and deploy it, and credits.
 - Click a marker, a floating title or an entry in a list to open the detail card. When the edit is part of a cluster, the card shows a small chart of additions (up) and removals (down) there over the last 10 minutes, in 30-second steps; hover it for exact counts.
 - The bars and the card chart use teal and orange-red rather than green and red, so they stay distinguishable with red-green colour blindness (checked with a colour-vision validator against the page background). Position (left/right, up/down) tells them apart too.
-
-### Timeline
-
-Every edit placed since the page opened is kept in memory (up to 50,000). The bar at the bottom of the globe replays them:
-
-- **Track:** shows how many edits were placed over time. Click or drag it to move the playhead. The globes then show the 10 minutes of edits before that moment, and the sky map shows only edits made by then.
-- **Play / pause:** pausing while live freezes the view at that moment. Playing replays from the playhead at the chosen speed (1× to 3600×). Edits get their ripple, title, sound and Follow as the playhead passes them; at high speeds only some get ripples. Playback switches back to live when it reaches the present.
-- **Jump to start** and **Live** buttons. With the track focused, ← and → move ±1 minute, Shift moves ±10 minutes, and Home and End jump to the start and to live.
-- New edits keep being recorded while you replay. Edits are placed at the time they were made, not when their location lookup finished.
-
-The recording lasts only as long as the page is open. For a full day or week, a small server could read the stream continuously and store compact records. The stream itself can replay roughly the last two weeks (`?since=`), but that means downloading every edit on every Wikimedia site, so it isn't practical from a browser.
-
-To try the timeline without waiting, backdate simulated edits in the console:
-
-```js
-for (let i = 0; i < 60; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })
-```
 
 ### Markers
 
@@ -94,7 +78,7 @@ sky   Sun, Moon and planets          → astronomy-engine, position today
         │
         ▼
 app/    globe.gl: ripples (size = edit size), markers / bars / heatmap that fade over 10 minutes,
-        floating titles, the sidebar list, a detail card (REST summary + diff link), the timeline
+        floating titles, the sidebar list, a detail card (REST summary + diff link)
 sound.js  optional Web Audio: larger edits play lower notes, panned by longitude
 ```
 
@@ -129,11 +113,11 @@ npm test
 | `style.css` | Styles, including the mobile layout (bottom panel under 760px wide) |
 | `geo.js` | Location resolver: batching, caching, Wikidata fallback chain, rate limiting |
 | `app/main.js` | Start-up: wires the controls, runs the update loops, connects to the stream |
-| `app/core.js` | Shared constants, helpers and state (`state`, `flags`, the timeline's `tl`, `view`) |
+| `app/core.js` | Shared constants, helpers and state (`state`, `flags`, `tl`, `view`) |
 | `app/stream.js` | Live edit stream, catch-up after a pause, placing edits, `simulate()` |
 | `app/globe.js` | The Earth globe: layers, ripples, floating titles, Follow, rotation |
 | `app/points.js` | Clustering, and the markers / bars / heatmap point styles |
-| `app/timeline.js` | Recorded history and the timeline bar |
+| `app/history.js` | Recorded history and the 10-minute window shown on the globe |
 | `app/sidebar.js` | Sidebar list, search and filters, stat links, show/hide panels |
 | `app/card.js` | Detail card and its additions/removals chart |
 | `sky.js` | Sky map (a second globe.gl globe) plus the astronomy helpers. Star catalogue and constellation data come from d3-celestial (BSD-3-Clause) |

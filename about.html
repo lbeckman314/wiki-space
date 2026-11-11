@@ -66,7 +66,6 @@
         Requests are batched (up to 50 articles at a time), every answer is cached, and the page backs off when Wikimedia asks it to slow down.</li>
       <li><b>Draw.</b> Edits ripple on the globe and leave a marker that fades over 10 minutes. Edits close together merge into one
         marker with a count, and split apart as you zoom in.</li>
-      <li><b>Replay.</b> Every placed edit is kept in memory while the page is open, so the timeline can rewind and replay them at up to 3600× speed.</li>
     </ol>
 
     <h2>Reading the globe</h2>
@@ -79,7 +78,8 @@
     </ul>
     <h3>Controls</h3>
     <ul>
-      <li><b>Hide panels</b> with the chevron in the corner of the sidebar, sky map or timeline; the chevron stays where it is, so click it again to bring the panel back. The sky map starts folded up and the timeline starts hidden.</li>
+      <li><b>Hide panels</b> with the chevron in the corner of the sidebar or sky map; the chevron stays where it is, so click it again to bring the panel back. The sky map starts folded up.</li>
+      <li><b>Resize the sidebar</b> by dragging its left edge (on a phone, the grip on its top edge). Double-click the edge to go back to the default size.</li>
       <li>Click the <b>status line</b> under the title (“live from Wikipedia”) for details: the edit stream, how fast the page is
         looking up places, whether Wikipedia has asked it to wait, what's waiting, and each server it talks to.</li>
       <li>Click the <b>placed, exact, approximate</b> or <b>in the sky</b> numbers to list those edits in the sidebar.</li>
@@ -88,8 +88,6 @@
       <li><b>Pause stream</b> disconnects from the live feed; resuming catches up on up to 15 minutes of missed edits.</li>
       <li>With your system's <b>reduce motion</b> setting on, the globes don't rotate on their own, ripples are skipped and camera moves jump instead of gliding.</li>
       <li><b>Follow</b> turns each globe to the newest edit. <b>Pause rotation</b> buttons stop each globe spinning. Each globe also holds still while your mouse is over it (or one of its bars, markers or titles), so they are easy to point at; over the space around it, it keeps turning.</li>
-      <li>On the timeline, drag the track or use <kbd>←</kbd> <kbd>→</kbd> (1 minute), <kbd>Shift</kbd> + arrows (10 minutes),
-        <kbd>Home</kbd> (start) and <kbd>End</kbd> (live).</li>
     </ul>
 
     <h3>Sharing your view</h3>
@@ -97,7 +95,7 @@
       what you see, and bookmarking it keeps your view. Nothing is stored in your browser, so the plain address always opens
       the default view. Settings left at their defaults don't appear in the address. You can also write a link by hand:</p>
     <ul>
-      <li><code>?sky=1</code> opens the sky map; <code>?timeline=1</code> shows the timeline; <code>?sidebar=0</code> hides the sidebar.</li>
+      <li><code>?sky=1</code> opens the sky map; <code>?sidebar=0</code> hides the sidebar.</li>
       <li><code>?points=markers</code> or <code>?points=heatmap</code> (bars are the default); <code>?height=bytes</code> sizes bars by bytes changed.</li>
       <li><code>?wikis=en</code> for English Wikipedia only, or <code>?wikis=all</code> for every Wikipedia.</li>
     </ul>
@@ -111,11 +109,11 @@
       <li><b>Sky map.</b> Added a second globe for the sky, with star and constellation data, orbit calculations and planet positions.</li>
       <li><b>Polish.</b> Clickable floating titles, a Follow mode, a starfield behind the Earth that matches the sky map, and retries when rate-limited.</li>
       <li><b>Readability.</b> Merged nearby edits into counted markers, added the Unplaced list and per-globe rotation buttons.</li>
-      <li><b>Timeline.</b> Recorded edits by the time they were made and added a replay bar with speeds and keyboard control.</li>
+      <li><b>Timeline.</b> Recorded edits by the time they were made and added a replay bar with speeds and keyboard control (since removed, to keep the page simple).</li>
       <li><b>Navigation.</b> Show/hide toggles, search, clickable stats and this page.</li>
       <li><b>Point styles.</b> A thin heatmap, and paired bars for additions and removals with a small chart in the card.</li>
       <li><b>Quality of life.</b> Background tabs, reduced motion, catching up after a pause, colour-blind-safe colours and a browser test suite.</li>
-      <li><b>Structure.</b> Split the app into small modules (stream, globe, points, timeline, sidebar, card).</li>
+      <li><b>Structure.</b> Split the app into small modules (stream, globe, points, history, sidebar, card).</li>
     </ol>
 
     <h2>Run it locally</h2>
@@ -134,8 +132,6 @@ python3 -m http.server 8000</code></pre>
     <h3>Trying things without waiting</h3>
     <p>Edits to astronomy articles are rare. To simulate edits to chosen articles (this only reads from Wikipedia and Wikidata), open:</p>
     <pre><code>http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Mars</code></pre>
-    <p>To fill the timeline with 30 minutes of simulated history, run this in the browser console:</p>
-    <pre><code>for (let i = 0; i &lt; 60; i++) __wikiSpace.simulate('Edit ' + i, 'en', { lat: 48.86, lng: 2.35 + i * 0.3, time: Date.now() - (60 - i) * 30e3 })</code></pre>
     <h3>If lookups stall</h3>
     <p>Wikimedia limits how many requests each IP address can make across all its sites, and every open tab of this page (plus your
       own Wikipedia browsing) shares that limit. The page sends at most one lookup every 2 seconds (one every 10 seconds while its tab is in the background), packing many articles into each one.

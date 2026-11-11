@@ -81,6 +81,8 @@ export const state = {
   barMetric: DEFAULTS.height === 'bytes' ? 'bytes' : 'count', // bar height: 'count' (edits) or 'bytes' (bytes changed, log scale)
   follow: false,
   rotate: !motion.reduce,
+  pointHover: null,     // the bar or marker right under the mouse (globe.gl's own hover)
+  near: null,           // the bar or marker the mouse is aiming at, within a few pixels (points.js)
   hovering: false,       // the mouse is over the Earth: rotation pauses so things hold still to be clicked
   paused: false,
   sound: false,

@@ -4,6 +4,8 @@ import { $, TEX, POINT_LIFE, RING_LIFE, LABEL_LIFE, MAX_LABELS, COLORS, BAR_ADD,
 import { markerRadius, groupTooltip, barTooltip, heatBandwidth, heatColor } from './points.js';
 import { select } from './card.js';
 
+const lighten = c => c.map(v => Math.round(v + (255 - v) * 0.45));
+
 export const wrap = $('globe');
 export const world = new Globe(wrap, { animateIn: true })
   .globeImageUrl(TEX + 'earth-night.jpg')
@@ -16,8 +18,10 @@ export const world = new Globe(wrap, { animateIn: true })
   .pointRadius(d => (d.bar ? d.r : markerRadius(d)))
   .pointColor(d => {
     const sel = d.items.includes(state.selected);
-    if (d.bar) return rgba(sel ? [255, 255, 255] : d.side === 'add' ? BAR_ADD : BAR_REMOVE, sel ? 0.95 : 0.9);
+    const near = d === state.near; // the bar or marker the pointer is aiming at (see points.js)
+    if (d.bar) return rgba(sel ? [255, 255, 255] : near ? lighten(d.side === 'add' ? BAR_ADD : BAR_REMOVE) : d.side === 'add' ? BAR_ADD : BAR_REMOVE, sel || near ? 1 : 0.9);
     const age = (clockNow() - d.latest.time) / POINT_LIFE;
+    if (near && !sel) return rgba(lighten(COLORS[d.latest.kind]), 1);
     return rgba(sel ? [255, 255, 255] : COLORS[d.latest.kind], sel ? 0.95 : Math.max(0.12, (d.exact ? 0.95 : 0.45) * (1 - age)));
   })
   .pointResolution(24)
@@ -64,7 +68,7 @@ export function initGlobe() {
   world.pointOfView({ lat: 25, lng: 10, altitude: 2.4 });
   // Hold still while the mouse is over the Earth (or a bar, marker or floating title), so things are easy to
   // hover and click; over empty space it keeps turning. (Touch already stops it: dragging takes over.)
-  watchHover(document.getElementById('globe'), world, '.glabel', on => { state.hovering = on; applyRotation(); });
+  watchHover(document.getElementById('globe'), world, '.glabel', on => { state.hovering = on; applyRotation(); }, d => { state.pointHover = d || null; });
 
   const resize = () => world.width(wrap.clientWidth).height(wrap.clientHeight);
   new ResizeObserver(resize).observe(wrap);
@@ -122,7 +126,7 @@ export function followTo(item) {
 export function followNow(item) { lastFollow = 0; followTo(item); }
 // Calls onChange(true/false) as the mouse moves on or off the globe itself. Uses globe.gl's toGlobeCoords
 // (a raycast), checked at most every 100 ms; points count via onPointHover, and HTML markers via `htmlSelector`.
-export function watchHover(el, globe, htmlSelector, onChange) {
+export function watchHover(el, globe, htmlSelector, onChange, onPoint) {
   let on = false, overPoint = false, last = 0, timer = null, pos = null;
   const set = v => { if (v !== on) { on = v; onChange(v); } };
   const check = () => {
@@ -138,7 +142,7 @@ export function watchHover(el, globe, htmlSelector, onChange) {
     else if (!timer) timer = setTimeout(check, 100);
   });
   el.addEventListener('pointerleave', () => { clearTimeout(timer); timer = null; pos = null; overPoint = false; set(false); });
-  globe.onPointHover(d => { overPoint = !!d; if (overPoint) set(true); });
+  globe.onPointHover(d => { overPoint = !!d; if (overPoint) set(true); if (onPoint) onPoint(d); });
 }
 
 export function applyRotation() { world.controls().autoRotate = state.rotate && !state.follow && !state.selected && !state.hovering; }

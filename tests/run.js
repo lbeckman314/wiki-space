@@ -60,6 +60,8 @@ async function openPage(browser, base, { viewport = { width: 1400, height: 850 }
 
 const sim = (page, title, at, lang = 'en') => page.evaluate(([t, a, l]) => __wikiSpace.simulate(t, l, a), [title, at, lang]);
 const rows = page => page.evaluate(() => [...document.querySelectorAll('#ticker li .t')].map(e => e.firstChild.textContent));
+// Only the edits a test simulated: real edits whose lookups were in flight when the stream was paused can still land.
+const ours = list => list.filter(t => /^(Paris edit|US topic|Andromeda Galaxy|Essay)/.test(t));
 
 async function main() {
   const server = await serve();
@@ -83,10 +85,11 @@ async function main() {
       });
       check('nearby edits merge into clusters', groups === 'approx:4 exact:5', groups);
       check('sky edit goes to the sky map', await page.evaluate(() => __wikiSpace.state.sky === 1));
-      const listed = await waitFor(page, () => document.querySelectorAll('#ticker li .t').length === 10); // the list redraws every 0.4 s
-      check('placed list shows all placed edits', !!listed, `rows: ${await page.evaluate(() => document.querySelectorAll('#ticker li .t').length)}`);
+      let listed = [];
+      for (let i = 0; i < 40 && listed.length !== 10; i++) { listed = ours(await rows(page)); await page.waitForTimeout(250); } // the list redraws every 0.4 s
+      check('placed list shows all placed edits', listed.length === 10, `rows: ${listed.length}`);
       await page.click('#stats button[data-filter="approx"]');
-      check('"approximate" stat filters the list', JSON.stringify(await rows(page)) === JSON.stringify(['US topic 3', 'US topic 2', 'US topic 1', 'US topic 0']));
+      check('"approximate" stat filters the list', JSON.stringify(ours(await rows(page))) === JSON.stringify(['US topic 3', 'US topic 2', 'US topic 1', 'US topic 0']));
       await page.click('#filters button[data-filter="all"]');
       await page.fill('#search', 'andromeda');
       // Poll: the search is debounced and the list redraws on a timer, which can lag on slow machines.
@@ -95,8 +98,10 @@ async function main() {
       check('search finds by title', found === '["Andromeda Galaxy"]', found);
       await page.fill('#search', '');
       await page.click('#tab-unplaced');
-      await page.waitForTimeout(400);
-      check('unplaced tab lists unplaced edits', JSON.stringify(await rows(page)) === '["Essay"]');
+      // Live edits can land here too, so look for ours rather than an exact list.
+      let unplaced = [];
+      for (let i = 0; i < 20 && !unplaced.length; i++) { unplaced = ours(await rows(page)); await page.waitForTimeout(200); }
+      check('unplaced tab lists unplaced edits', JSON.stringify(unplaced) === '["Essay"]', JSON.stringify(unplaced));
       await page.click('#tab-placed');
       await page.waitForTimeout(400);
       await page.evaluate(() => [...document.querySelectorAll('#ticker li')].find(li => li.textContent.includes('Paris edit 4')).click());
@@ -128,6 +133,39 @@ async function main() {
       await waitFor(page, () => !!window.__wikiSpace);
       check('point style stays (in the address) after a reload', await page.evaluate(() => document.querySelector('#point-style [data-style=heatmap]').getAttribute('aria-pressed') === 'true'));
       await page.click('#point-style [data-style=markers]');
+      check('no page errors', page.errors.length === 0, page.errors.join(' | '));
+      await page.context().close();
+    }
+
+    console.log('Aiming at bars and markers');
+    {
+      const page = await openPage(browser, base);
+      await page.click('#rot-earth'); // hold the globe still
+      await page.evaluate(() => __wikiSpace.world.pointOfView({ lat: 20, lng: 0, altitude: 2.4 }, 0));
+      for (let i = 0; i < 5; i++) await sim(page, 'Aim ' + i, { lat: 20, lng: 0 });
+      // Where a bar or marker for our edits is on screen, and a spot `off` pixels to its right.
+      const spot = (off) => page.evaluate(off => {
+        const W = __wikiSpace.world, r = document.getElementById('globe').getBoundingClientRect();
+        const d = W.pointsData().find(x => x.items.some(i => i.title.startsWith('Aim')));
+        if (!d) return null;
+        const a = W.getScreenCoords(d.lat, d.lng, 0), b = W.getScreenCoords(d.lat, d.lng, d.bar ? d.alt : 0);
+        return { x: r.left + (a.x + b.x) / 2 + off, y: r.top + (a.y + b.y) / 2 };
+      }, off);
+      await waitFor(page, () => __wikiSpace.world.pointsData().some(x => x.bar && x.items.some(i => i.title.startsWith('Aim'))));
+      let at = await spot(14);
+      await page.mouse.move(at.x, at.y);
+      check('a near miss lights up the bar and shows its tooltip', !!(await waitFor(page, () =>
+        __wikiSpace.state.near && __wikiSpace.state.near.bar && !document.getElementById('near-tip').hidden)));
+      await page.mouse.click(at.x, at.y);
+      check('clicking a near miss opens the bar\'s newest edit', !!(await waitFor(page, () =>
+        __wikiSpace.state.selected && __wikiSpace.state.selected.title === 'Aim 4')));
+      await page.mouse.move(at.x + 80, at.y);
+      check('far from any bar, nothing is aimed at', !!(await waitFor(page, () => !__wikiSpace.state.near)));
+      await page.click('#card-close');
+      await page.click('#point-style [data-style=markers]');
+      at = await spot(0);
+      await page.mouse.move(at.x + 28, at.y);
+      check('markers: a near miss counts too', !!(await waitFor(page, () => __wikiSpace.state.near && !__wikiSpace.state.near.bar)));
       check('no page errors', page.errors.length === 0, page.errors.join(' | '));
       await page.context().close();
     }

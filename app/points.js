@@ -50,6 +50,7 @@ export function buildGroups() {
   } else {
     world.pointsData(state.groups).labelsData(state.groups.filter(g => g.n > 1));
   }
+  refreshNear();
 }
 
 export function groupTooltip(g) {
@@ -87,7 +88,7 @@ function buildBars() {
     b.lat = b.group.lat;
     b.lng = b.group.lng + (b.side === 'add' ? -off : off);
     b.r = r;
-    b.alt = Math.max(0.004, 0.25 * zoom * (barScale(b.v) / top));
+    b.alt = Math.max(0.012 * zoom, 0.25 * zoom * (barScale(b.v) / top)); // even one edit stands up a little
   }
   return bars;
 }
@@ -167,13 +168,86 @@ export function setPointStyle(style) {
   setUrlParam('points', state.pointStyle, DEFAULTS.points);
 }
 
-// The heatmap has no click events, so a click (not a drag) on the Earth in heatmap mode opens the
-// newest edit near that spot.
+// ---------------- aiming help ----------------
+// Bars and markers are only a few pixels wide, so the pointer doesn't have to land on one exactly: the
+// nearest bar or marker within REACH pixels (more for touch) lights up, shows its tooltip and opens on click.
+// Distance is measured on screen to the whole column, from its base to its top, and only to the near side
+// of the globe.
+const REACH = { mouse: 22, pen: 22, touch: 38 };
+function nearestTarget(x, y, reach) {
+  if (state.pointStyle === 'heatmap') return null;
+  const cam = world.camera().position;
+  let best = null, bestD = reach;
+  for (const d of world.pointsData()) {
+    const alt = d.bar ? d.alt : 0.0015;
+    const p = world.getCoords(d.lat, d.lng, 0);
+    if (p.x * (cam.x - p.x) + p.y * (cam.y - p.y) + p.z * (cam.z - p.z) <= 0) continue; // far side
+    const a = world.getScreenCoords(d.lat, d.lng, 0), b = world.getScreenCoords(d.lat, d.lng, alt);
+    // Markers are discs: count the pointer as on it anywhere within its radius on screen.
+    const pad = d.bar ? 0 : Math.max(0, distPx(a, world.getScreenCoords(d.lat + markerRadius(d), d.lng, 0)) - 2);
+    const dist = Math.max(0, segDist(x, y, a, b) - pad);
+    if (dist < bestD) { bestD = dist; best = d; }
+  }
+  return best;
+}
+const distPx = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function segDist(x, y, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
+  const t = len ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / len)) : 0;
+  return Math.hypot(x - (a.x + t * dx), y - (a.y + t * dy));
+}
+// Points are rebuilt every few seconds; aim again at whatever is under the (still) pointer.
+let aimAt = null;
+function refreshNear() {
+  if (!state.near && !aimAt) return;
+  if (!aimAt || state.pointStyle === 'heatmap') { setNear(null); return; }
+  state.near = null; // the old object is gone; force a re-colour
+  const r = wrap.getBoundingClientRect();
+  setNear(nearestTarget(aimAt.clientX - r.left, aimAt.clientY - r.top, REACH[aimAt.pointerType] || 22), aimAt);
+}
+function setNear(d, e) {
+  const tip = $('near-tip');
+  if (d !== state.near) {
+    state.near = d;
+    world.pointColor(world.pointColor()); // re-colour so the target lights up
+    wrap.classList.toggle('aiming', !!d);
+    if (d) tip.innerHTML = d.bar ? barTooltip(d) : groupTooltip(d);
+  }
+  // globe.gl shows its own tooltip when the pointer is right on a point; ours is for near misses.
+  tip.hidden = !d || !e || !!state.pointHover;
+  if (!tip.hidden) {
+    const r = wrap.getBoundingClientRect();
+    tip.style.left = Math.min(e.clientX - r.left + 14, r.width - tip.offsetWidth - 8) + 'px';
+    tip.style.top = Math.max(8, e.clientY - r.top - tip.offsetHeight - 12) + 'px';
+  }
+}
+
 export function initPoints() {
-  let downAt = null;
+  let downAt = null, frame = 0, last = null;
   wrap.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
+  wrap.addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch' || e.buttons) { aimAt = null; if (state.near) setNear(null); return; } // dragging the globe
+    last = e;
+    if (!frame) frame = setTimeout(() => { // at most ~30 checks a second
+      frame = 0;
+      if (last.target.closest('.glabel')) { setNear(null); return; }
+      const r = wrap.getBoundingClientRect();
+      aimAt = { clientX: last.clientX, clientY: last.clientY, pointerType: last.pointerType };
+      setNear(nearestTarget(last.clientX - r.left, last.clientY - r.top, REACH[last.pointerType] || 22), aimAt);
+    }, 30);
+  });
+  wrap.addEventListener('pointerleave', () => { aimAt = null; setNear(null); });
   wrap.addEventListener('click', e => {
-    if (state.pointStyle !== 'heatmap' || !downAt) return;
+    if (!downAt || e.target.closest('.glabel')) return; // floating titles handle their own clicks
+    if (Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return; // it was a drag
+    if (state.pointStyle !== 'heatmap') {
+      if (state.pointHover) return; // right on a point: globe.gl's own click opens it
+      const r = wrap.getBoundingClientRect();
+      const d = nearestTarget(e.clientX - r.left, e.clientY - r.top, REACH[e.pointerType] || 22);
+      if (d) select(d.latest);
+      return;
+    }
+    // The heatmap has no click events, so a click on the Earth opens the newest edit near that spot.
     if (e.target.closest('.glabel')) return; // floating titles handle their own clicks
     if (Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return; // it was a drag
     const r = wrap.getBoundingClientRect();

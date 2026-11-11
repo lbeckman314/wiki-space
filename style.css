@@ -112,6 +112,10 @@ a:hover { text-decoration: underline; }
   font: 12px/1.4 system-ui, sans-serif; color: var(--text); max-width: 260px; }
 .tip b { display: block; font-size: 13px; }
 .tip span { color: var(--muted); }
+/* Tooltip for the bar or marker the mouse is aiming at (near misses; see points.js) */
+#near-tip { position: absolute; z-index: 4; pointer-events: none; }
+#near-tip[hidden] { display: none; }
+#globe.aiming, #globe.aiming canvas { cursor: pointer; }
 
 @media (max-width: 760px) {
   #app { flex-direction: column; }
