@@ -1,352 +1,1305 @@
+/* Wiki Space styles. Sections follow the page from top to bottom; phone layout and motion settings
+   are at the end. */
+
+/* ---------------- colours and base ---------------- */
 :root {
   --bg: #04060c;
   --panel: rgba(12, 16, 28, 0.92);
+  --overlay: rgba(8, 11, 20, 0.7); /* boxes floating over the globe */
+  --field: #141a2b; /* inputs */
   --line: rgba(255, 255, 255, 0.09);
+  --line-hover: rgba(255, 255, 255, 0.35);
   --text: #e6e9f2;
   --muted: #8a93a8;
   --accent: #7aa2ff;
+  --pressed: rgba(122, 162, 255, 0.16);
+  --pressed-line: rgba(122, 162, 255, 0.45);
+  /* Edit colours (also COLORS in app/core.js and app/sky.js): checked for red-green colour blindness. */
   --add: #14a6a0;
   --remove: #e2603f;
   --new: #9a6cf0;
-  --neutral: #9aa3b5;
   color-scheme: dark;
 }
 
-* { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
-  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+* {
+  box-sizing: border-box;
+}
 
-#app { display: flex; height: 100%; }
-#globe-wrap { position: relative; flex: 1; min-width: 0; }
-/* #globe is its own stacking context, so its label layer can never paint over the overlays below. */
-#globe { position: absolute; inset: 0; z-index: 0; }
-#stats, #sky-wrap { z-index: 1; }
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
 
-/* HUD */
-#hud { position: absolute; top: 16px; left: 16px; pointer-events: none; z-index: 3; }
-.hud-title { display: flex; align-items: center; gap: 10px; }
-#hud h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: 0.01em; }
-#about-link { pointer-events: auto; font-size: 11px; line-height: 1; padding: 5px 9px; border-radius: 999px;
-  border: 1px solid var(--line); background: rgba(8, 11, 20, 0.6); color: var(--muted); text-decoration: none; }
-#about-link:hover { border-color: rgba(255,255,255,.35); color: var(--text); }
-/* The status line is a button that opens the API details */
-#status { pointer-events: auto; display: flex; align-items: center; gap: 6px; color: var(--muted); font: inherit; font-size: 12px;
-  margin: 2px 0 0 -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: 6px; background: none; cursor: pointer; text-align: left; }
-#status:hover, #status[aria-expanded="true"] { border-color: var(--line); background: rgba(8, 11, 20, 0.6); color: var(--text); }
-#status .caret { font-size: 9px; opacity: .7; transition: transform .2s; }
-#status[aria-expanded="true"] .caret { transform: rotate(180deg); }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #e0b341; }
-.dot.live { background: var(--add); box-shadow: 0 0 8px var(--add); }
-.dot.down { background: var(--remove); }
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
 
-#stats { position: absolute; top: 16px; right: 16px; display: flex; gap: 18px; pointer-events: none;
-  text-align: right; }
-#stats b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 600; }
-#stats span { color: var(--muted); font-size: 11px; }
+a:hover {
+  text-decoration: underline;
+}
 
-/* Bottom-left stack: legend, then Pause rotation. */
-#corner { position: absolute; left: 16px; bottom: 16px; z-index: 1; display: flex; flex-direction: column;
-  align-items: flex-start; gap: 8px; }
-#legend { background: rgba(8, 11, 20, 0.7);
-  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 12px;
-  color: var(--muted); backdrop-filter: blur(6px); }
-.lg-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
-.lg-sep { height: 1px; background: var(--line); margin: 6px 0; }
-.sw { width: 10px; height: 10px; border-radius: 50%; background: var(--c); display: inline-block; flex: none; }
-.sw.solid { background: #fff; }
-.sw.soft { background: radial-gradient(circle, rgba(255,255,255,.55) 0 30%, rgba(255,255,255,0) 72%);
-  width: 14px; height: 14px; margin: -2px; }
+.pos {
+  color: var(--add);
+}
 
-/* Side panel */
-#panel { width: var(--panel-w, 360px); flex: none; background: var(--panel); border-left: 1px solid var(--line);
-  display: flex; flex-direction: column; min-height: 0; }
-#controls { padding: 14px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
-#controls select { margin-left: 8px; background: #141a2b; color: var(--text); border: 1px solid var(--line);
-  border-radius: 6px; padding: 4px 6px; font: inherit; }
-.toggles { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); }
-.toggles label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.neg {
+  color: var(--remove);
+}
 
-#card { position: relative; margin: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 12px;
-  background: #0f1424; max-height: 55%; overflow-y: auto; flex: none; }
-#card-close { position: absolute; top: 6px; right: 8px; background: none; border: 0; color: var(--muted);
-  font-size: 22px; cursor: pointer; line-height: 1; }
-#card-thumb { float: right; width: 84px; height: 84px; object-fit: cover; border-radius: 8px; margin: 18px 0 6px 10px; }
-#card h2 { font-size: 17px; margin: 4px 24px 6px 0; line-height: 1.25; }
-.card-meta { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
-.badge { background: #1d2540; color: #b9c6ef; border-radius: 4px; padding: 0 5px; font-size: 11px;
-  font-weight: 600; text-transform: uppercase; }
-.where { margin: 0 0 8px; font-size: 13px; color: #cfd6e8; }
-.extract { color: var(--muted); font-size: 13px; margin: 0 0 10px; display: -webkit-box; -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical; overflow: hidden; }
-#card dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0 0 10px; font-size: 13px; clear: both; }
-#card dt { color: var(--muted); }
-#card dd { margin: 0; overflow-wrap: anywhere; }
-.pos { color: var(--add); } .neg { color: var(--remove); } .newc { color: var(--new); }
+.newc {
+  color: var(--new);
+}
 
-.ticker-h { margin: 12px 16px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-#ticker, #unplaced { list-style: none; margin: 0; padding: 0 8px 12px; overflow-y: auto; flex: 1; min-height: 0; }
-#ticker li, #unplaced li { display: flex; gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: 8px; cursor: pointer;
-  animation: in .35s ease-out; }
-#ticker li:hover, #unplaced li:hover { background: rgba(255,255,255,.05); }
-#ticker .sw, #unplaced .sw { transform: translateY(1px); }
-#ticker .t, #unplaced .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#ticker .sub, #unplaced .sub { color: var(--muted); font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; }
-#ticker .d, #unplaced .d { font-variant-numeric: tabular-nums; font-size: 12px; }
-@keyframes in { from { opacity: 0; transform: translateY(-4px); } }
+/* Round pill buttons (point style, list filters) */
+.pill {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+}
 
-/* Floating labels on the globe */
-.glabel { pointer-events: none; transition: opacity .6s; }
-.glabel > div { pointer-events: auto; cursor: pointer; }
-.glabel > div:hover { border-color: rgba(255,255,255,.5); }
-.glabel.fading { opacity: 0; }
-.glabel.fading > div { pointer-events: none; }
-.glabel > div { position: relative; top: -20px; white-space: nowrap; font-size: 12px; padding: 2px 7px;
-  border-radius: 10px; background: rgba(6, 9, 18, .75); border: 1px solid rgba(255,255,255,.14); color: #fff;
-  max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-.glabel.approx > div { border-style: dashed; color: #d9dfee; }
+.pill:hover {
+  border-color: var(--line-hover);
+  color: var(--text);
+}
 
-/* Tooltip */
-.tip { background: rgba(6, 9, 18, .92); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
-  font: 12px/1.4 system-ui, sans-serif; color: var(--text); max-width: 260px; }
-.tip b { display: block; font-size: 13px; }
-.tip span { color: var(--muted); }
-/* Tooltip for the bar or marker the mouse is aiming at (near misses; see points.js) */
-#near-tip { position: absolute; z-index: 4; pointer-events: none; }
-#near-tip[hidden] { display: none; }
-#globe.aiming, #globe.aiming canvas { cursor: pointer; }
+.pill[aria-pressed="true"] {
+  color: var(--text);
+  background: var(--pressed);
+  border-color: var(--pressed-line);
+}
 
+/* Small square buttons (chevrons, enlarge, close) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.icon-btn:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.icon-btn .ico {
+  width: 11px;
+  height: 11px;
+  fill: currentColor;
+  flex: none;
+}
+
+/* Colour swatch (a dot in --c) */
+.sw {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+/* ---------------- layout ---------------- */
+#app {
+  display: flex;
+  height: 100%;
+}
+
+#globe-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Its own stacking context, so the globe's title layer never paints over the boxes on top of it. */
+#globe {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* ---------------- title and status line (top left) ---------------- */
+#hud {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.hud-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#hud h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+/* Round GitHub icon button next to the title */
+#source-link {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--overlay);
+  color: var(--muted);
+}
+
+#source-link svg {
+  width: 15px;
+  height: 15px;
+}
+
+#source-link:hover {
+  border-color: var(--line-hover);
+  color: var(--text);
+  text-decoration: none;
+}
+
+#tagline {
+  margin: 2px 0 0;
+  max-width: 300px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The status line is a button that opens the API panel. */
+#status {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0 -6px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+#status:hover,
+#status[aria-expanded="true"] {
+  border-color: var(--line);
+  background: var(--overlay);
+  color: var(--text);
+}
+
+#status .caret {
+  font-size: 9px;
+  opacity: 0.7;
+  transition: transform 0.2s;
+}
+
+#status[aria-expanded="true"] .caret {
+  transform: rotate(180deg);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e0b341;
+}
+
+.dot.live {
+  background: var(--add);
+  box-shadow: 0 0 8px var(--add);
+}
+
+.dot.down {
+  background: var(--remove);
+}
+
+/* ---------------- API panel (opens from the status line) ---------------- */
+#api-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -4px;
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  pointer-events: auto;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+}
+
+#api-panel[hidden] {
+  display: none;
+}
+
+.api-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+#api-panel h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+#api-panel h3 {
+  margin: 12px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+#api-panel dl {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+#api-panel dt {
+  color: var(--muted);
+}
+
+#api-panel dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.api-meter {
+  display: inline-block;
+  width: 70px;
+  height: 6px;
+  margin-right: 4px;
+  vertical-align: 1px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.api-meter i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.api-meter.warn i {
+  background: #e0b341;
+}
+
+.api-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.api-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.api-recent li {
+  display: grid;
+  grid-template-columns: 62px 1fr 74px 96px;
+}
+
+.api-recent li span:last-child {
+  text-align: right;
+}
+
+.api-recent .st {
+  color: var(--text);
+}
+
+.api-recent .st.bad {
+  font-weight: 650;
+}
+
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.api-table th {
+  padding: 2px 4px;
+  text-align: right;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+  border-bottom: 1px solid var(--line);
+}
+
+.api-table td {
+  padding: 2px 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.api-table th:first-child,
+.api-table td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+
+.api-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------------- sky map (top right) ---------------- */
+/* Anchored by its top, so folding it up rolls it into its header in place. */
+#sky-wrap {
+  --sky-w: 300px;
+  --sky-h: 300px;
+  --sky-head: 40px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1;
+  width: var(--sky-w);
+  height: var(--sky-h);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: radial-gradient(circle at 50% 50%, #0b1230 0%, #060914 70%);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  transition: width 0.3s, height 0.3s;
+}
+
+#sky-wrap.big {
+  --sky-w: min(70%, 760px);
+  --sky-h: min(calc(100% - 152px), 760px);
+}
+
+#sky {
+  position: absolute;
+  inset: 0;
+}
+
+.sky-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px 7px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+  background: linear-gradient(rgba(6, 9, 20, 0.85), rgba(6, 9, 20, 0));
+}
+
+.sky-head span:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
+
+#sky-count {
+  flex: 1;
+}
+
+.sky-head .icon-btn + .icon-btn {
+  margin-left: 2px;
+}
+
+#sky-empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  margin: 0;
+  padding: 0 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* Edits on the sky map: a dot, with a title that shows for a few seconds, on hover, or when open. */
+.skym {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transform: translate(4px, 0);
+  transition: opacity 0.3s;
+}
+
+.skym i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: -8px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 8px var(--c);
+}
+
+.skym.approx i {
+  width: 14px;
+  height: 14px;
+  margin-left: -11px;
+  background: radial-gradient(circle, var(--c) 0 25%, transparent 70%);
+  box-shadow: none;
+}
+
+.skym span {
+  max-width: 160px;
+  padding: 1px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: #fff;
+  background: rgba(6, 9, 18, 0.75);
+  border-radius: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s;
+}
+
+.skym.fresh span,
+.skym.sel span,
+.skym:hover span {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.skym.sel i {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ---------------- legend (bottom left) ---------------- */
+#legend {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 1;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--overlay);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  backdrop-filter: blur(6px);
+}
+
+.lg-pick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.lg-sep {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--line);
+}
+
+.lg-star {
+  width: 10px;
+  text-align: center;
+  font-size: 11px;
+  color: #fff;
+}
+
+.lg-bar {
+  flex: none;
+  width: 6px;
+  height: 14px;
+  margin: 0 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--c);
+}
+
+.lg-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: rgba(20, 166, 160, 0.9);
+  color: #04120b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sw.solid {
+  background: #fff;
+}
+
+.sw.soft {
+  width: 14px;
+  height: 14px;
+  margin: -2px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.55) 0 30%, rgba(255, 255, 255, 0) 72%);
+}
+
+/* Only the rows for the current point style */
+.lg-bars,
+body.points-bars .lg-markers {
+  display: none;
+}
+
+body.points-bars .lg-bars {
+  display: flex;
+}
+
+/* ---------------- on the Earth: floating titles and tooltips ---------------- */
+.glabel {
+  pointer-events: none;
+  transition: opacity 0.6s;
+}
+
+.glabel > div {
+  position: relative;
+  top: -20px;
+  max-width: 220px;
+  padding: 2px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(6, 9, 18, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.glabel > div:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.glabel.approx > div {
+  border-style: dashed;
+  color: #d9dfee;
+}
+
+.glabel.fading {
+  opacity: 0;
+}
+
+.glabel.fading > div {
+  pointer-events: none;
+}
+
+.tip {
+  max-width: 260px;
+  padding: 6px 9px;
+  font: 12px/1.4 system-ui, sans-serif;
+  color: var(--text);
+  background: rgba(6, 9, 18, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.tip b {
+  display: block;
+  font-size: 13px;
+}
+
+.tip span {
+  color: var(--muted);
+}
+
+.tip ul {
+  margin: 4px 0;
+  padding-left: 16px;
+}
+
+.tip li {
+  margin: 1px 0;
+}
+
+/* The tooltip for the bar or marker the mouse is aiming at (app/points.js) */
+#near-tip {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+}
+
+#near-tip[hidden] {
+  display: none;
+}
+
+#globe.aiming,
+#globe.aiming canvas {
+  cursor: pointer;
+}
+
+/* ---------------- sidebar ---------------- */
+#panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  width: var(--panel-w, 360px);
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+/* Show/hide chevrons. Each stays put while its panel folds toward it, and turns to point where the
+   panel goes. The arrow is drawn pointing down; rotate from there. */
+.toggle .chev {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s;
+}
+
+#toggle-sidebar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
+/* › tucks the sidebar away */
+#toggle-sidebar .chev {
+  transform: rotate(-90deg);
+}
+
+/* ‹ brings it back */
+body.hide-sidebar #toggle-sidebar .chev {
+  transform: rotate(90deg);
+}
+
+/* ⌃ folds the sky map up */
+#toggle-sky .chev {
+  transform: rotate(180deg);
+}
+
+body.hide-sky #toggle-sky .chev {
+  transform: none;
+}
+
+/* Resize handle: the sidebar's left edge (its top edge on phones). */
+#panel-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  z-index: 3;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+#panel-resize::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+#panel-resize:hover::after,
+#panel-resize:focus-visible::after,
+body.resizing #panel-resize::after {
+  background: var(--accent);
+}
+
+body.resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* keep the drag on the handle */
+body.resizing #globe,
+body.resizing #sky {
+  pointer-events: none;
+}
+
+#controls {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+#controls select {
+  margin-left: 8px;
+  padding: 4px 6px;
+  font: inherit;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--muted);
+}
+
+.toggles label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+/* Detail card */
+#card {
+  position: relative;
+  flex: none;
+  max-height: 55%;
+  margin: 12px;
+  padding: 14px;
+  overflow-y: auto;
+  background: #0f1424;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+#card-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+#card-thumb {
+  float: right;
+  width: 84px;
+  height: 84px;
+  margin: 18px 0 6px 10px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+#card h2 {
+  margin: 4px 24px 6px 0;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.badge {
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #b9c6ef;
+  background: #1d2540;
+  border-radius: 4px;
+}
+
+.where {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #cfd6e8;
+}
+
+.extract {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  clear: both;
+}
+
+#card dt {
+  color: var(--muted);
+}
+
+#card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The card's chart and its list of other edits in the same group */
+#card-chart,
+#card-more {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+#card-chart h4,
+#card-more h4 {
+  margin: 0 0 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.chart-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.chart-wrap {
+  position: relative;
+}
+
+.chart-wrap canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.chart-tip {
+  position: absolute;
+  top: -26px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 11px;
+  color: var(--text);
+  background: rgba(6, 9, 18, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+#card-more ol {
+  list-style: none;
+  max-height: 180px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+#card-more li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 3px 4px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#card-more li:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#card-more li.more {
+  color: var(--muted);
+  cursor: default;
+}
+
+#card-more .t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#card-more .sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Search, tabs, filters and the list */
+.search-wrap {
+  padding: 10px 12px 0;
+}
+
+#search {
+  width: 100%;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+#search::placeholder {
+  color: var(--muted);
+}
+
+#search:focus {
+  outline: none;
+  border-color: rgba(122, 162, 255, 0.6);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 10px 12px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+  margin-bottom: -1px;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+}
+
+.tabs button[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.tabs button span {
+  margin-left: 3px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+#filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px 12px 2px;
+}
+
+#list-note {
+  margin: 6px 16px 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#ticker {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 8px 12px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+#ticker li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  animation: slide-in 0.35s ease-out;
+}
+
+#ticker li:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#ticker li.sel {
+  background: rgba(122, 162, 255, 0.12);
+}
+
+#ticker .sw {
+  transform: translateY(1px);
+}
+
+#ticker .t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#ticker .sub {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+#ticker .d {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* ---------------- folded panels ---------------- */
+/* The hidden sidebar shrinks to nothing; its right edge, and so its chevron, stays put. */
+body.hide-sidebar #panel {
+  width: 0;
+  border-left: 0;
+}
+
+body.hide-sidebar #panel > :not(#toggle-sidebar) {
+  display: none;
+}
+
+/* The sky map rolls up into its header. */
+body.hide-sky #sky-wrap {
+  width: 130px;
+  height: var(--sky-head);
+}
+
+body.hide-sky .sky-head {
+  background: rgba(6, 9, 20, 0.85);
+}
+
+body.hide-sky .sky-head span:first-child {
+  flex: 1;
+}
+
+body.hide-sky #sky-count,
+body.hide-sky #sky-expand,
+body.hide-sky #sky-empty {
+  display: none;
+}
+
+/* ---------------- phones ---------------- */
+/* The sidebar moves under the globe, and the legend keeps only the Bars/Markers picker. */
 @media (max-width: 760px) {
-  #app { flex-direction: column; }
-  #panel { width: auto; height: var(--panel-h, 42%); border-left: 0; border-top: 1px solid var(--line); }
-  #card { max-height: 70%; }
-  #stats { gap: 12px; top: 68px; left: 16px; right: auto; text-align: left; }
-  #stats b { font-size: 16px; }
-  #corner { left: 10px; bottom: 10px; }
-  #legend { padding: 6px; }
-  #legend .lg-row, #legend .lg-sep { display: none !important; }
+  #app {
+    flex-direction: column;
+  }
+
+  #tagline {
+    max-width: calc(100vw - 150px);
+  }
+
+  #panel {
+    width: auto;
+    height: var(--panel-h, 42%);
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  #card {
+    max-height: 70%;
+  }
+
+  #toggle-sidebar .chev {
+    transform: none;
+  }
+
+  body.hide-sidebar #toggle-sidebar .chev {
+    transform: rotate(180deg);
+  }
+
+  body.hide-sidebar #panel {
+    width: auto;
+    height: 46px;
+    border-top: 1px solid var(--line);
+  }
+
+  body.hide-sidebar #panel::before {
+    content: 'Sidebar';
+    padding: 13px 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  #panel-resize {
+    top: -11px;
+    bottom: auto;
+    left: 56px;
+    right: 56px;
+    width: auto;
+    height: 22px;
+    cursor: row-resize;
+  }
+
+  #panel-resize::after {
+    top: 9px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.28);
+  }
+
+  body.resizing {
+    cursor: row-resize;
+  }
+
+  #sky-wrap {
+    --sky-w: 150px;
+    --sky-h: 150px;
+    --sky-head: 36px;
+    top: 10px;
+    right: 10px;
+  }
+
+  #sky-wrap.big {
+    --sky-w: calc(100% - 20px);
+    --sky-h: calc(100% - 200px);
+  }
+
+  body.hide-sky #sky-wrap {
+    width: 110px;
+  }
+
+  .sky-head {
+    gap: 4px;
+    padding-left: 10px;
+  }
+
+  .sky-head span:first-child {
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .sky-head .icon-btn {
+    width: 22px;
+    height: 22px;
+  }
+
+  #sky-count {
+    display: none;
+  }
+
+  #legend {
+    left: 10px;
+    bottom: 10px;
+    padding: 6px;
+  }
+
+  #legend .lg-row,
+  #legend .lg-sep {
+    display: none !important;
+  }
+
+  #api-panel {
+    width: calc(100vw - 20px);
+    left: -6px;
+    max-height: 60vh;
+  }
+
+  .api-recent li {
+    grid-template-columns: 58px 1fr 60px 80px;
+  }
 }
 
-/* Sky inset */
-/* Top-right, just under the stats. Anchored by its top, so it rolls up into its header in place. */
-#sky-wrap { --sky-w: 300px; --sky-h: 300px; --sky-head: 40px;
-  position: absolute; right: 16px; top: 72px; width: var(--sky-w); height: var(--sky-h); border-radius: 14px;
-  border: 1px solid var(--line); background: radial-gradient(circle at 50% 50%, #0b1230 0%, #060914 70%);
-  overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.5); transition: width .3s, height .3s; }
-#sky-wrap.big { --sky-w: min(70%, 760px); --sky-h: min(calc(100% - 152px), 760px); }
-#sky { position: absolute; inset: 0; }
-.sky-head { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 8px;
-  padding: 7px 8px 7px 12px; font-size: 12px; color: var(--muted); pointer-events: none;
-  background: linear-gradient(rgba(6,9,20,.85), rgba(6,9,20,0)); }
-.sky-head span:first-child { color: var(--text); font-weight: 600; }
-.sky-head #sky-count { flex: 1; }
-.icon-btn { pointer-events: auto; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--text);
-  border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 14px; line-height: 1; }
-#sky-empty { position: absolute; left: 0; right: 0; bottom: 10px; margin: 0; text-align: center; font-size: 12px;
-  color: var(--muted); pointer-events: none; padding: 0 12px; }
-
-.skym { display: flex; align-items: center; gap: 5px; cursor: pointer; transform: translate(4px, 0); transition: opacity .3s; }
-.skym i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); flex: none;
-  margin-left: -8px; }
-.skym.approx i { width: 14px; height: 14px; margin-left: -11px; background: radial-gradient(circle, var(--c) 0 25%, transparent 70%); box-shadow: none; }
-.skym span { font-size: 11px; color: #fff; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis;
-  background: rgba(6,9,18,.75); border-radius: 8px; padding: 1px 6px; opacity: 0; transition: opacity .6s; }
-.skym span { pointer-events: none; }
-.skym.fresh span, .skym.sel span, .skym:hover span { opacity: 1; pointer-events: auto; }
-.skym.sel i { outline: 2px solid #fff; outline-offset: 2px; }
-
-@media (max-width: 760px) {
-  #sky-wrap { --sky-w: 150px; --sky-h: 150px; --sky-head: 36px; right: 10px; top: 124px; }
-  #sky-wrap.big { --sky-w: calc(100% - 20px); --sky-h: calc(100% - 200px); }
-  .sky-head #sky-count { display: none; }
-  .sky-head { gap: 4px; padding-left: 10px; }
-  .sky-head span:first-child { flex: 1; white-space: nowrap; }
-  .sky-head .icon-btn { width: 22px; height: 22px; }
+/* ---------------- motion ---------------- */
+/* Panels take their starting state without animating (main.js removes this class after the first frames). */
+body.booting * {
+  transition: none !important;
 }
-.lg-star { width: 10px; text-align: center; color: #fff; font-size: 11px; }
-
-/* List tabs */
-.tabs { display: flex; gap: 4px; margin: 10px 12px 4px; border-bottom: 1px solid var(--line); }
-.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font: inherit;
-  font-size: 12px; font-weight: 600; padding: 6px 8px; cursor: pointer; margin-bottom: -1px; }
-.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
-.tabs button span { font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 3px; }
-
-/* Rotation buttons */
-.rot-btn {
-  display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 10px; border-radius: 999px; cursor: pointer;
-  background: rgba(8, 11, 20, 0.75); border: 1px solid var(--line); color: var(--text); font: inherit; font-size: 12px;
-  backdrop-filter: blur(6px); }
-.rot-btn:hover, .icon-btn:hover { border-color: rgba(255,255,255,.3); }
-.rot-btn .ico, .icon-btn .ico { width: 11px; height: 11px; fill: currentColor; flex: none; }
-.icon-btn { display: inline-flex; align-items: center; justify-content: center; }
-.sky-head .icon-btn + .icon-btn { margin-left: 2px; }
-
-/* Cluster tooltip and legend */
-.tip ul { margin: 4px 0; padding-left: 16px; }
-.tip li { margin: 1px 0; }
-.lg-count { min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: rgba(20,166,160,.9); color: #04120b;
-  font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
-
-/* "More edits here" list in the card */
-#card-more { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
-#card-more h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-#card-more ol { list-style: none; margin: 0; padding: 0; max-height: 180px; overflow-y: auto; }
-#card-more li { display: flex; align-items: baseline; gap: 7px; padding: 3px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-#card-more li:hover { background: rgba(255,255,255,.05); }
-#card-more li.more { color: var(--muted); cursor: default; }
-#card-more .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#card-more .sub { color: var(--muted); font-size: 11px; }
-
-@media (max-width: 760px) {
-}
-
-}
-
-
-/* API panel (opens from the status line) */
-#api-panel { pointer-events: auto; position: absolute; top: calc(100% + 6px); left: -4px; width: 400px;
-  max-width: calc(100vw - 32px); max-height: min(70vh, 640px); overflow-y: auto; padding: 12px 14px;
-  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 34px rgba(0,0,0,.55);
-  font-size: 12px; color: var(--text); backdrop-filter: blur(8px); }
-#api-panel[hidden] { display: none; }
-.api-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-#api-panel h2 { margin: 0; font-size: 13px; font-weight: 650; }
-#api-panel h3 { margin: 12px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
-#api-panel dl { display: grid; grid-template-columns: 88px 1fr; gap: 4px 10px; margin: 0; }
-#api-panel dt { color: var(--muted); }
-#api-panel dd { margin: 0; min-width: 0; }
-.api-meter { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.08);
-  overflow: hidden; vertical-align: 1px; margin-right: 4px; }
-.api-meter i { display: block; height: 100%; background: var(--accent); }
-.api-meter.warn i { background: #e0b341; }
-.api-list { list-style: none; margin: 4px 0 0; padding: 0; }
-.api-list li { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; color: var(--muted); font-variant-numeric: tabular-nums; }
-.api-recent li { display: grid; grid-template-columns: 62px 1fr 74px 96px; }
-.api-recent li span:last-child { text-align: right; }
-.api-recent .t { color: var(--muted); }
-.api-recent .st { color: var(--text); }
-.api-recent .st.bad { font-weight: 650; }
-.api-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.api-table th { color: var(--muted); font-weight: 500; text-align: right; padding: 2px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
-.api-table td { text-align: right; padding: 2px 4px; white-space: nowrap; }
-.api-table th:first-child, .api-table td:first-child { text-align: left; padding-left: 0; }
-.api-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
-@media (max-width: 760px) {
-  #api-panel { width: calc(100vw - 20px); left: -6px; max-height: 60vh; }
-  .api-recent li { grid-template-columns: 58px 1fr 60px 80px; }
-}
-
-/* Show/hide chevrons. Each stays in one place; its panel collapses toward it, and the chevron
-   turns to point where the panel goes. The SVG points down; rotate from there. */
-.toggle .chev { width: 12px; height: 12px; transition: transform .2s; }
-#panel { position: relative; }
-#toggle-sidebar { position: absolute; top: 10px; right: 10px; z-index: 2; }
-#toggle-sidebar .chev { transform: rotate(-90deg); }                 /* › tucks it away to the right */
-body.hide-sidebar #toggle-sidebar .chev { transform: rotate(90deg); } /* ‹ brings it back */
-#toggle-sky .chev { transform: rotate(180deg); }                      /* ⌃ rolls the map up into its header */
-body.hide-sky #toggle-sky .chev { transform: none; }
-
-@media (max-width: 760px) {
-  /* The sidebar sits under the globe on phones, so its chevron points down/up. */
-  #toggle-sidebar .chev { transform: none; }
-  body.hide-sidebar #toggle-sidebar .chev { transform: rotate(180deg); }
-}
-
-/* Stats are buttons that filter the sidebar list */
-#stats button { pointer-events: auto; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
-  text-align: inherit; cursor: pointer; border-radius: 6px; }
-#stats button:hover span, #stats button:focus-visible span { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
-#stats button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-/* Search, filters and list note */
-.search-wrap { padding: 10px 12px 0; }
-#search { width: 100%; background: #141a2b; color: var(--text); border: 1px solid var(--line); border-radius: 8px;
-  padding: 7px 10px; font: inherit; font-size: 13px; }
-#search::placeholder { color: var(--muted); }
-#search:focus { outline: none; border-color: rgba(122,162,255,.6); }
-#filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px 2px; }
-#filters button { font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: none; color: var(--muted); }
-#filters button[aria-pressed="true"] { color: var(--text); background: rgba(122,162,255,.16); border-color: rgba(122,162,255,.45); }
-#filters button:hover { border-color: rgba(255,255,255,.35); }
-#list-note { margin: 6px 16px 2px; font-size: 11px; color: var(--muted); }
-#ticker li.sel { background: rgba(122,162,255,.12); }
-
-/* Hidden panels */
-body.hide-sidebar #panel > :not(#toggle-sidebar) { display: none; }
-body.hide-sidebar #panel { width: 0; border-left: 0; }  /* its right edge, and so the chevron, stays put */
-body.hide-sidebar #stats { right: 52px; }
-/* The sky map rolls up into its header: bottom grows as height shrinks, so the header doesn't move. */
-body.hide-sky #sky-wrap { width: 130px; height: var(--sky-head); }
-body.hide-sky .sky-head { background: rgba(6,9,20,.85); }
-body.hide-sky .sky-head #sky-count, body.hide-sky #rot-sky, body.hide-sky #sky-expand, body.hide-sky #sky-empty { display: none; }
-body.hide-sky .sky-head span:first-child { flex: 1; }
-
-@media (max-width: 760px) {
-  #stats { top: 76px; }
-  body.hide-sidebar #panel { width: auto; height: 46px; border-top: 1px solid var(--line); }
-  body.hide-sidebar #stats { right: auto; }
-  body.hide-sidebar #panel::before { content: 'Sidebar'; padding: 13px 16px; font-size: 13px; color: var(--muted); }
-  body.hide-sky #sky-wrap { width: 110px; }
-}
-
-/* Sidebar resize handle: its left edge on desktop, its top edge (with a grip) on phones. */
-#panel-resize { position: absolute; z-index: 3; top: 0; bottom: 0; left: -5px; width: 10px; cursor: col-resize;
-  touch-action: none; outline: none; }
-#panel-resize::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; background: transparent;
-  transition: background .15s; }
-#panel-resize:hover::after, #panel-resize:focus-visible::after, body.resizing #panel-resize::after { background: var(--accent); }
-body.resizing { cursor: col-resize; user-select: none; }
-body.resizing #globe, body.resizing #sky { pointer-events: none; }  /* the drag stays on the handle */
-@media (max-width: 760px) {
-  #panel-resize { top: -11px; bottom: auto; left: 56px; right: 56px; width: auto; height: 22px; cursor: row-resize; }
-  #panel-resize::after { top: 9px; left: 50%; width: 40px; height: 4px; margin-left: -20px; border-radius: 2px;
-    background: rgba(255,255,255,.28); }
-  body.resizing { cursor: row-resize; }
-}
-
-/* Point style */
-/* Point style and bar height pickers, at the top of the legend */
-.lg-pick { display: flex; align-items: center; gap: 4px; }
-.lg-pick + .lg-pick { margin-top: 6px; }
-.lg-pick span { margin-right: 2px; }
-.lg-pick button { font: inherit; font-size: 11px; line-height: 1; padding: 5px 9px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: none; color: var(--muted); }
-.lg-pick button[aria-pressed="true"] { color: var(--text); background: rgba(122,162,255,.16); border-color: rgba(122,162,255,.45); }
-.lg-pick button:hover { border-color: rgba(255,255,255,.35); color: var(--text); }
-.lg-heat { display: none; }
-body.points-heatmap .lg-heat { display: flex; }
-body.points-heatmap .lg-markers { display: none; }
-.lg-heatbar { width: 34px; height: 8px; border-radius: 4px; flex: none;
-  background: linear-gradient(90deg, rgba(70,134,251,.25), #4686fb, #1ae4b6, #a2fc3c, #fabb39, #e4460a); }
-body.points-heatmap #globe canvas { cursor: pointer; }
-
-/* Bars point style */
-#bar-metric { display: none; }
-body.points-bars #bar-metric { display: flex; }
-.lg-bars { display: none; }
-body.points-bars .lg-bars { display: flex; }
-body.points-bars .lg-markers { display: none; }
-.lg-bar { width: 6px; height: 14px; border-radius: 2px 2px 0 0; background: var(--c); flex: none; margin: 0 2px; }
-
-/* Additions / removals chart in the card */
-#card-chart { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
-#card-chart h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-.chart-legend { display: flex; gap: 14px; font-size: 12px; color: var(--text); margin-bottom: 4px; }
-.chart-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--c); margin-right: 5px; }
-.chart-wrap { position: relative; }
-.chart-wrap canvas { display: block; cursor: crosshair; }
-.chart-tip { position: absolute; top: -26px; white-space: nowrap; font-size: 11px; color: var(--text); pointer-events: none;
-  background: rgba(6, 9, 18, .95); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; }
-.chart-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 2px; }
-
-/* Reduced motion: no list or label animations */
-/* Panels take their starting state without animating (main.js removes this after the first frames). */
-body.booting * { transition: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
-  #ticker li { animation: none; }
-  .glabel, .skym, .skym span, #sky-wrap, .toggle .chev { transition: none; }
+  #ticker li {
+    animation: none;
+  }
+
+  .glabel,
+  .skym,
+  .skym span,
+  #sky-wrap,
+  .toggle .chev {
+    transition: none;
+  }
 }

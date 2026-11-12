@@ -1,107 +1,101 @@
-// The Earth globe: base layers, ripples, floating titles, Follow and rotation.
-// The point / label / heatmap layers are styled here but their data comes from points.js.
-import { $, TEX, POINT_LIFE, RING_LIFE, LABEL_LIFE, MAX_LABELS, COLORS, BAR_ADD, BAR_REMOVE, rgba, glide, motion, state, flags, clockNow } from './core.js';
-import { markerRadius, groupTooltip, barTooltip, heatBandwidth, heatColor } from './points.js';
+// The Earth: the globe and how its layers look, ripples, floating titles, Follow and rotation.
+// Which bars and markers are drawn is decided in points.js.
+import Globe from 'globe.gl';
+import { $, TEX, POINT_LIFE, RING_LIFE, LABEL_LIFE, MAX_LABELS, COLORS, rgba, glide, motion, state, flags } from './core.js';
+import { markerRadius, groupTooltip, barTooltip } from './points.js';
 import { select } from './card.js';
+import { WikiSky } from './sky.js';
 
+const WHITE = [255, 255, 255];
 const lighten = c => c.map(v => Math.round(v + (255 - v) * 0.45));
+
+// Bar or marker colour: white when selected, lighter when aimed at, otherwise its edit colour.
+// Markers fade as their newest edit ages; approximate ones are fainter.
+function pointColor(d) {
+  const selected = d.items.includes(state.selected);
+  const base = d.bar ? COLORS[d.side] : COLORS[d.latest.kind];
+  if (selected) return rgba(WHITE, 0.95);
+  if (d === state.near) return rgba(lighten(base), 1);
+  if (d.bar) return rgba(base, 0.9);
+  const age = (Date.now() - d.latest.time) / POINT_LIFE;
+  return rgba(base, Math.max(0.12, (d.exact ? 0.95 : 0.45) * (1 - age)));
+}
 
 export const wrap = $('globe');
 export const world = new Globe(wrap, { animateIn: true })
   .globeImageUrl(TEX + 'earth-night.jpg')
   .bumpImageUrl(TEX + 'earth-topology.png')
   .showAtmosphere(true).atmosphereColor('#5b8cff').atmosphereAltitude(0.17)
-  // persistent markers: one flat disc per cluster of nearby edits, or two bars per cluster (see points.js)
+  // Bars stand up; markers are flat discs (so they don't turn into columns close up).
   .pointLat('lat').pointLng('lng')
-  // Markers are flat discs (so they don't turn into columns close up); bars stand up.
   .pointAltitude(d => (d.bar ? d.alt : 0.0015))
   .pointRadius(d => (d.bar ? d.r : markerRadius(d)))
-  .pointColor(d => {
-    const sel = d.items.includes(state.selected);
-    const near = d === state.near; // the bar or marker the pointer is aiming at (see points.js)
-    if (d.bar) return rgba(sel ? [255, 255, 255] : near ? lighten(d.side === 'add' ? BAR_ADD : BAR_REMOVE) : d.side === 'add' ? BAR_ADD : BAR_REMOVE, sel || near ? 1 : 0.9);
-    const age = (clockNow() - d.latest.time) / POINT_LIFE;
-    if (near && !sel) return rgba(lighten(COLORS[d.latest.kind]), 1);
-    return rgba(sel ? [255, 255, 255] : COLORS[d.latest.kind], sel ? 0.95 : Math.max(0.12, (d.exact ? 0.95 : 0.45) * (1 - age)));
-  })
-  .pointResolution(24)
-  .pointsMerge(false)
-  .pointsTransitionDuration(0)
+  .pointColor(pointColor)
+  .pointResolution(24).pointsMerge(false).pointsTransitionDuration(0)
   .pointLabel(d => (d.bar ? barTooltip(d) : groupTooltip(d)))
   .onPointClick(d => select(d.latest))
-  // edit counts on clusters
-  .labelLat(g => g.lat - 0.8 * markerRadius(g)).labelLng('lng').labelText(g => String(g.n)) // shifted so the number sits centred on the disc
+  // Edit counts on markers, nudged so the number sits in the middle of the disc.
+  .labelLat(g => g.lat - 0.8 * markerRadius(g)).labelLng('lng').labelText(g => String(g.n))
   .labelSize(g => markerRadius(g) * 1.05).labelDotRadius(0).labelAltitude(0.003).labelResolution(2)
   .labelColor(g => (g.items.includes(state.selected) ? 'rgba(10,14,25,0.95)' : 'rgba(255,255,255,0.95)'))
   .labelDotOrientation(() => 'top')
-  .labelLabel(g => groupTooltip(g))
+  .labelLabel(groupTooltip)
   .onLabelClick(g => select(g.latest))
-  // heatmap (the alternative point style): one dataset, thin and close to the surface
-  .heatmapPoints('points').heatmapPointLat('lat').heatmapPointLng('lng')
-  .heatmapPointWeight('w') // summed edit weights of one cluster (see points.js)
-  .heatmapBandwidth(() => heatBandwidth())
-  .heatmapBaseAltitude(0.002).heatmapTopAltitude(0.018)
-  .heatmapColorFn(() => heatColor)
-  .heatmapColorSaturation(1.15)
-  .heatmapsTransitionDuration(0)
-  // one-shot ripples
+  // Ripples
   .ringLat('lat').ringLng('lng')
   .ringColor(d => t => rgba(COLORS[d.kind], (d.tier === 'exact' ? 0.9 : 0.4) * (1 - t)))
   .ringMaxRadius('maxR').ringPropagationSpeed('speed').ringRepeatPeriod(RING_LIFE * 2)
-  // floating title labels (HTML, so every script renders)
+  // Floating titles (HTML, so every script renders)
   .htmlLat('lat').htmlLng('lng').htmlAltitude(0.01)
   .htmlElement(d => d.el)
-  .htmlTransitionDuration(0);
+  .htmlTransitionDuration(0)
+  // Titles on the far side of the Earth are hidden, so they can't be clicked either.
+  .htmlElementVisibilityModifier((el, visible) => { el.style.visibility = visible ? 'visible' : 'hidden'; });
 
 export function initGlobe() {
-  // Hide (and make unclickable) labels that are on the far side of the Earth.
-  if (typeof world.htmlElementVisibilityModifier === 'function') {
-    world.htmlElementVisibilityModifier((elem, visible) => {
-      elem.style.visibility = visible ? 'visible' : 'hidden';
-    });
-  }
-  // Same star catalogue as the sky map, painted as the background sphere.
-  WikiSky.starfield.then(url => world.backgroundImageUrl(url));
-
-  world.controls().autoRotate = state.rotate;
+  WikiSky.starfield.then(url => world.backgroundImageUrl(url)); // the sky map's stars, behind the Earth
   world.controls().autoRotateSpeed = 0.35;
-  world.pointOfView({ lat: 25, lng: 10, altitude: 2.4 });
-  // Hold still while the mouse is over the Earth (or a bar, marker or floating title), so things are easy to
-  // hover and click; over empty space it keeps turning. (Touch already stops it: dragging takes over.)
-  watchHover(document.getElementById('globe'), world, '.glabel', on => { state.hovering = on; applyRotation(); }, d => { state.pointHover = d || null; });
+  world.pointOfView({ lat: 40, lng: -100, altitude: 1.8 });
+  applyRotation();
+  // Hold still while the mouse is over the Earth (or a bar, marker or title), so things are easy to click.
+  watchHover(wrap, world, '.glabel', on => { state.hovering = on; applyRotation(); }, d => { state.pointHover = d || null; });
 
   const resize = () => world.width(wrap.clientWidth).height(wrap.clientHeight);
   new ResizeObserver(resize).observe(wrap);
   resize();
 }
 
-// Ripple, floating title, sound and Follow for one edit: on arrival when live, or when the playhead passes it.
-// While the tab is hidden only sound plays (for people listening in the background); ripples, titles
-// and camera moves would otherwise pile up and all appear at once when the tab comes back.
-export function announce(item, { label = true, sound = true } = {}) {
-  if (sound && state.sound) WikiSound.play(item);
+export function applyRotation() {
+  world.controls().autoRotate = state.rotate && !state.follow && !state.selected && !state.hovering;
+}
+
+// A new edit on the Earth: ripple, floating title and Follow. Skipped while the tab is hidden, or they'd
+// pile up and all appear at once when the tab comes back.
+export function announce(item) {
   if (document.hidden) return;
-  if (item.sky) { WikiSky.pulse(item); return; }
-  const size = Math.log10(Math.abs(item.delta) + 10); // 1 .. ~5
   const exact = item.tier === 'exact';
-  if (!motion.reduce) state.rings.push({
-    lat: item.lat, lng: item.lng, kind: item.kind, tier: item.tier, born: Date.now(),
-    maxR: exact ? 1 + size * 1.1 : item.tier === 'country' ? 5 + size : 2.5 + size,
-    speed: exact ? 2.5 + size : 1.4,
-  });
+  if (!motion.reduce) {
+    const size = Math.log10(Math.abs(item.delta) + 10); // about 1 to 5
+    state.rings.push({
+      lat: item.lat, lng: item.lng, kind: item.kind, tier: item.tier, born: Date.now(),
+      maxR: exact ? 1 + size * 1.1 : item.tier === 'country' ? 5 + size : 2.5 + size,
+      speed: exact ? 2.5 + size : 1.4,
+    });
+  }
   flags.dirty = true;
   if (state.follow && !state.selected) followTo(item);
-  if (!label) return;
+  addTitle(item, exact);
+}
 
+function addTitle(item, exact) {
   const el = document.createElement('div');
   el.className = 'glabel' + (exact ? '' : ' approx');
   const inner = document.createElement('div');
-  inner.textContent = item.title;
-  inner.title = item.title;
-  // pointerdown rather than click: globe.gl may re-attach label elements between press and release.
+  inner.textContent = inner.title = item.title;
+  // pointerdown, not click: globe.gl may re-attach title elements between press and release.
   inner.addEventListener('pointerdown', e => { e.stopPropagation(); select(item); });
   el.appendChild(inner);
-  // Expired labels stay (hidden) until the next new label, so the label layer is re-sent only once per edit.
+  // Expired titles stay (hidden) until the next one arrives, so the layer is re-sent once per edit.
   const now = Date.now();
   state.labels = state.labels.filter(l => now - l.born < LABEL_LIFE);
   state.labels.push({ lat: item.lat, lng: item.lng, el, born: now });
@@ -109,40 +103,52 @@ export function announce(item, { label = true, sound = true } = {}) {
   flags.labelsDirty = true;
 }
 
-// Follow: centre the Earth on the newest edit (at most every 1.5 s).
-// If edits arrive faster than that, the camera catches up with the latest one when the wait is over.
+// Follow: turn the Earth to the newest edit, at most every 1.5 s. When edits come faster, the camera
+// catches up with the latest one once the wait is over.
 let lastFollow = 0, followTimer = null, followNext = null;
-export function followTo(item) {
+export function followTo(item, now = false) {
+  if (now) lastFollow = 0;
   followNext = item;
   const wait = lastFollow + 1500 - Date.now();
   if (wait > 0) {
-    if (!followTimer) followTimer = setTimeout(() => { followTimer = null; if (state.follow && !state.selected) followTo(followNext); }, wait);
+    followTimer ??= setTimeout(() => {
+      followTimer = null;
+      if (state.follow && !state.selected) followTo(followNext);
+    }, wait);
     return;
   }
   lastFollow = Date.now();
   world.pointOfView({ lat: item.lat, lng: item.lng, altitude: world.pointOfView().altitude }, glide(1000));
 }
-// Follow right away, ignoring the 1.5 s wait (used when Follow is switched on).
-export function followNow(item) { lastFollow = 0; followTo(item); }
-// Calls onChange(true/false) as the mouse moves on or off the globe itself. Uses globe.gl's toGlobeCoords
-// (a raycast), checked at most every 100 ms; points count via onPointHover, and HTML markers via `htmlSelector`.
+
+// Calls onChange(true/false) as the mouse moves onto or off a globe (used for both globes). "On" means over
+// the sphere itself (globe.gl's toGlobeCoords), over one of its points, or over an HTML marker matching
+// `htmlSelector`; empty space around the sphere doesn't count. Checked at most every 100 ms.
 export function watchHover(el, globe, htmlSelector, onChange, onPoint) {
   let on = false, overPoint = false, last = 0, timer = null, pos = null;
   const set = v => { if (v !== on) { on = v; onChange(v); } };
   const check = () => {
-    last = performance.now(); timer = null;
+    last = performance.now();
+    timer = null;
     if (!pos) return;
     const r = el.getBoundingClientRect();
-    set(overPoint || !!(pos.target && pos.target.closest(htmlSelector)) || !!globe.toGlobeCoords(pos.x - r.left, pos.y - r.top));
+    set(overPoint || !!pos.target.closest(htmlSelector) || !!globe.toGlobeCoords(pos.x - r.left, pos.y - r.top));
   };
   el.addEventListener('pointermove', e => {
-    if (e.pointerType === 'touch') return;
+    if (e.pointerType === 'touch') return; // touch already stops the rotation: dragging takes over
     pos = { x: e.clientX, y: e.clientY, target: e.target };
     if (performance.now() - last >= 100) check();
-    else if (!timer) timer = setTimeout(check, 100);
+    else timer ??= setTimeout(check, 100);
   });
-  el.addEventListener('pointerleave', () => { clearTimeout(timer); timer = null; pos = null; overPoint = false; set(false); });
-  globe.onPointHover(d => { overPoint = !!d; if (overPoint) set(true); if (onPoint) onPoint(d); });
+  el.addEventListener('pointerleave', () => {
+    clearTimeout(timer);
+    timer = pos = null;
+    overPoint = false;
+    set(false);
+  });
+  globe.onPointHover(d => {
+    overPoint = !!d;
+    if (overPoint) set(true);
+    if (onPoint) onPoint(d);
+  });
 }
-
-export function applyRotation() { world.controls().autoRotate = state.rotate && !state.follow && !state.selected && !state.hovering; }

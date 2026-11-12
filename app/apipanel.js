@@ -1,7 +1,8 @@
-// The API panel: opens from the status line and shows the edit stream and place lookups (pace, rate limits,
-// waiting batches, each server, recent requests). Refreshes once a second while open.
+// The panel that opens from the status line: the edit stream, and the place lookups (pace, rate limits,
+// waiting batches, each server, recent requests). Redrawn once a second while open.
 import { $, esc, state } from './core.js';
 import { streamDetails } from './stream.js';
+import { WikiGeo } from './geo.js';
 
 const WIKIMEDIA_LIMIT = 80; // per IP address per minute, across all Wikimedia sites (measured, 2026; may change)
 const WIKIS = { en: 'English Wikipedia', top: 'Top 20 Wikipedias', all: 'All Wikipedias' };
@@ -20,10 +21,8 @@ function meter(value, max) {
 function render() {
   const s = streamDetails();
   const g = WikiGeo.lookupDetails();
-  const conn = s.paused ? 'Paused (Pause stream is on)'
-    : s.state === 'closed' ? 'Reconnecting…'
-    : (s.state === 'catching-up' ? 'Catching up on missed edits' : 'Connected') +
-      (s.connectedAt ? ` · since ${clock(s.connectedAt)} (${secs(Date.now() - s.connectedAt)})` : '');
+  const conn = !s.connected ? 'Not connected'
+    : 'Connected' + (s.connectedAt ? ` · since ${clock(s.connectedAt)} (${secs(Date.now() - s.connectedAt)})` : '');
 
   const waitingItems = g.waiting.reduce((t, w) => t + w.items, 0);
   const wait = g.pausedMs > 0

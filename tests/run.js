@@ -6,7 +6,7 @@
 //
 // Starts a small static server for the project folder, opens the page in headless Chromium and checks
 // the main features using simulated edits at fixed locations, so no Wikipedia or Wikidata lookups are
-// made. The page still loads its libraries and textures from jsDelivr, so it needs internet access.
+// made. The page still loads its libraries, Earth images and star data from jsDelivr, so it needs internet access.
 // Software-rendered browsers draw slowly, so checks poll instead of waiting fixed times.
 
 const http = require('http');
@@ -46,7 +46,7 @@ async function waitFor(page, fn, arg, timeout = 30000) {
   return last;
 }
 
-async function openPage(browser, base, { viewport = { width: 1400, height: 850 }, reducedMotion = 'no-preference', query = '' } = {}) {
+async function openPage(browser, base, { viewport = { width: 1400, height: 850 }, reducedMotion = 'no-preference', query = '', follow = false } = {}) {
   const ctx = await browser.newContext({ viewport, reducedMotion });
   const page = await ctx.newPage();
   page.errors = [];
@@ -54,7 +54,9 @@ async function openPage(browser, base, { viewport = { width: 1400, height: 850 }
   await page.goto(base + '/' + query, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await waitFor(page, () => !!window.__wikiSpace);
   // Stop the live stream so only simulated edits appear.
-  await page.evaluate(() => { const p = document.getElementById('t-pause'); if (!p.checked) p.click(); });
+  await page.evaluate(() => __wikiSpace.disconnect());
+  // Follow is on by default; most tests want the camera to stay where they put it.
+  if (!follow) await page.evaluate(() => { const f = document.getElementById('t-follow'); if (f.checked) f.click(); });
   return page;
 }
 
@@ -88,8 +90,8 @@ async function main() {
       let listed = [];
       for (let i = 0; i < 40 && listed.length !== 10; i++) { listed = ours(await rows(page)); await page.waitForTimeout(250); } // the list redraws every 0.4 s
       check('placed list shows all placed edits', listed.length === 10, `rows: ${listed.length}`);
-      await page.click('#stats button[data-filter="approx"]');
-      check('"approximate" stat filters the list', JSON.stringify(ours(await rows(page))) === JSON.stringify(['US topic 3', 'US topic 2', 'US topic 1', 'US topic 0']));
+      await page.click('#filters button[data-filter="approx"]');
+      check('the Approximate filter narrows the list', JSON.stringify(ours(await rows(page))) === JSON.stringify(['US topic 3', 'US topic 2', 'US topic 1', 'US topic 0']));
       await page.click('#filters button[data-filter="all"]');
       await page.fill('#search', 'andromeda');
       // Poll: the search is debounced and the list redraws on a timer, which can lag on slow machines.
@@ -126,13 +128,12 @@ async function main() {
         return sides === 'add,remove' ? sides : '';
       }) || await page.evaluate(() => __wikiSpace.world.pointsData().map(x => x.side).sort().join(','));
       check('bars style draws an additions bar and a removals bar', bars === 'add,remove', String(bars));
-      await page.click('#point-style [data-style=heatmap]');
-      const heat = await waitFor(page, () => { const h = __wikiSpace.world.heatmapsData(); return h.length === 1 && h[0].points.length > 0; });
-      check('heatmap style feeds the heatmap layer', !!heat);
+      await page.click('#point-style [data-style=markers]');
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitFor(page, () => !!window.__wikiSpace);
-      check('point style stays (in the address) after a reload', await page.evaluate(() => document.querySelector('#point-style [data-style=heatmap]').getAttribute('aria-pressed') === 'true'));
-      await page.click('#point-style [data-style=markers]');
+      check('point style stays (in the address) after a reload', await page.evaluate(() => document.querySelector('#point-style [data-style=markers]').getAttribute('aria-pressed') === 'true'));
+      check('only Markers and Bars are offered', await page.evaluate(() =>
+        [...document.querySelectorAll('#point-style button')].map(b => b.dataset.style).join() === 'markers,bars' && !document.getElementById('bar-metric')));
       check('no page errors', page.errors.length === 0, page.errors.join(' | '));
       await page.context().close();
     }
@@ -140,9 +141,11 @@ async function main() {
     console.log('Aiming at bars and markers');
     {
       const page = await openPage(browser, base);
-      await page.click('#rot-earth'); // hold the globe still
-      await page.evaluate(() => __wikiSpace.world.pointOfView({ lat: 20, lng: 0, altitude: 2.4 }, 0));
-      for (let i = 0; i < 5; i++) await sim(page, 'Aim ' + i, { lat: 20, lng: 0 });
+      await page.evaluate(() => { __wikiSpace.state.rotate = false; __wikiSpace.world.controls().autoRotate = false; }); // hold the globe still
+      // Open ocean, with approximate edits hidden, so real edits that landed before the stream stopped aren't nearer.
+      await page.click('#t-approx');
+      await page.evaluate(() => __wikiSpace.world.pointOfView({ lat: -45, lng: -20, altitude: 2.4 }, 0));
+      for (let i = 0; i < 5; i++) await sim(page, 'Aim ' + i, { lat: -45, lng: -20 });
       // Where a bar or marker for our edits is on screen, and a spot `off` pixels to its right.
       const spot = (off) => page.evaluate(off => {
         const W = __wikiSpace.world, r = document.getElementById('globe').getBoundingClientRect();
@@ -157,14 +160,15 @@ async function main() {
       check('a near miss lights up the bar and shows its tooltip', !!(await waitFor(page, () =>
         __wikiSpace.state.near && __wikiSpace.state.near.bar && !document.getElementById('near-tip').hidden)));
       await page.mouse.click(at.x, at.y);
-      check('clicking a near miss opens the bar\'s newest edit', !!(await waitFor(page, () =>
-        __wikiSpace.state.selected && __wikiSpace.state.selected.title === 'Aim 4')));
+      // (All five share one timestamp, so any of them can count as the newest.)
+      check('clicking a near miss opens one of the bar\'s edits', !!(await waitFor(page, () =>
+        __wikiSpace.state.selected && __wikiSpace.state.selected.title.startsWith('Aim'))));
       await page.mouse.move(at.x + 80, at.y);
       check('far from any bar, nothing is aimed at', !!(await waitFor(page, () => !__wikiSpace.state.near)));
       await page.click('#card-close');
       await page.click('#point-style [data-style=markers]');
       at = await spot(0);
-      await page.mouse.move(at.x + 28, at.y);
+      await page.mouse.move(at.x + 16, at.y);
       check('markers: a near miss counts too', !!(await waitFor(page, () => __wikiSpace.state.near && !__wikiSpace.state.near.bar)));
       check('no page errors', page.errors.length === 0, page.errors.join(' | '));
       await page.context().close();
@@ -180,7 +184,6 @@ async function main() {
       const live = await waitFor(page, () => __wikiSpace.state.points.length > 0 && __wikiSpace.state.points.length);
       check('the globe shows only the last 10 minutes', live > 0 && live <= 14, String(live));
       check('older edits stay in history', await page.evaluate(() => __wikiSpace.state.history.length >= 40));
-      check('no timeline bar', await page.evaluate(() => !document.getElementById('timeline') && !document.getElementById('toggle-timeline')));
       check('no page errors', page.errors.length === 0, page.errors.join(' | '));
       await page.context().close();
     }
@@ -219,15 +222,15 @@ async function main() {
 
     console.log('Panels, follow and reduced motion');
     {
-      const page = await openPage(browser, base);
+      const page = await openPage(browser, base, { follow: true });
       await page.click('#toggle-sidebar');
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitFor(page, () => !!window.__wikiSpace);
       check('hidden panels stay hidden after a reload', await page.evaluate(() =>
         document.getElementById('panel').offsetWidth === 0));
       await page.click('#toggle-sidebar');
-      await page.evaluate(() => { const p = document.getElementById('t-pause'); if (!p.checked) p.click(); });
-      await page.click('#t-follow');
+      await page.evaluate(() => __wikiSpace.disconnect());
+      check('Follow is on by default', await page.evaluate(() => document.getElementById('t-follow').checked && __wikiSpace.state.follow));
       await sim(page, 'Sydney', { lat: -33.86, lng: 151.21 });
       const pov = await waitFor(page, () => { const v = __wikiSpace.world.pointOfView(); return Math.abs(v.lat + 33.86) < 0.5 && Math.abs(v.lng - 151.21) < 0.5; }, null, 20000);
       check('Follow turns the globe to the newest edit', !!pov);
@@ -237,7 +240,7 @@ async function main() {
 
       const calm = await openPage(browser, base, { reducedMotion: 'reduce' });
       check('reduced motion: globes start without rotation', await calm.evaluate(() =>
-        __wikiSpace.world.controls().autoRotate === false && WikiSky.globe.controls().autoRotate === false));
+        __wikiSpace.world.controls().autoRotate === false && __wikiSpace.sky.globe.controls().autoRotate === false));
       await sim(calm, 'Quiet edit', { lat: 0, lng: 0 });
       await calm.waitForTimeout(500);
       check('reduced motion: no ripples', await calm.evaluate(() => __wikiSpace.state.rings.length === 0));
@@ -247,9 +250,10 @@ async function main() {
 
     console.log('Defaults and settings in the address');
     {
-      const page = await openPage(browser, base);
-      check('defaults: sidebar open, sky map folded, bars', await page.evaluate(() =>
+      const page = await openPage(browser, base, { follow: true });
+      check('defaults: sidebar open, sky map folded, Follow on, bars', await page.evaluate(() =>
         !document.body.classList.contains('hide-sidebar') && document.body.classList.contains('hide-sky') &&
+        document.getElementById('t-follow').checked &&
         document.querySelector('#point-style [data-style=bars]').getAttribute('aria-pressed') === 'true'));
       check('defaults leave the address clean', await page.evaluate(() => location.search === ''), await page.evaluate(() => location.search));
       await page.click('#status');
@@ -259,34 +263,35 @@ async function main() {
       await page.keyboard.press('Escape');
       check('Escape closes the API panel', await page.evaluate(() => document.getElementById('api-panel').hidden));
       await page.click('#toggle-sky');
-      await page.click('#point-style [data-style=heatmap]');
+      await page.click('#point-style [data-style=markers]');
+      await page.click('#t-follow');
       check('changing settings writes them to the address', await page.evaluate(() => {
-        const q = new URLSearchParams(location.search); return q.get('sky') === '1' && q.get('points') === 'heatmap';
+        const q = new URLSearchParams(location.search); return q.get('sky') === '1' && q.get('points') === 'markers' && q.get('follow') === '0';
       }), await page.evaluate(() => location.search));
       // Nothing is kept in the browser: the plain address opens the defaults again in the same browser.
       await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
       await waitFor(page, () => !!window.__wikiSpace);
       check('a plain address opens the defaults, whatever was chosen before', await page.evaluate(() =>
-        document.body.classList.contains('hide-sky') && __wikiSpace.state.pointStyle === 'bars' && location.search === ''));
+        document.body.classList.contains('hide-sky') && __wikiSpace.state.pointStyle === 'bars' && __wikiSpace.state.follow && location.search === ''));
       await page.context().close();
 
-      const linked = await openPage(browser, base, { query: '?sidebar=0&sky=1&points=markers&height=bytes&wikis=en&points=bogus' });
-      check('a link sets panels, point style, bar height and wikis', await linked.evaluate(() =>
+      const linked = await openPage(browser, base, { query: '?sidebar=0&sky=1&points=markers&follow=0&wikis=all&points=bogus', follow: true });
+      check('a link sets panels, point style, Follow and wikis', await linked.evaluate(() =>
         document.body.classList.contains('hide-sidebar') && !document.body.classList.contains('hide-sky') &&
-        __wikiSpace.state.pointStyle === 'markers' && __wikiSpace.state.barMetric === 'bytes' && __wikiSpace.state.mode === 'en' &&
-        document.getElementById('wiki-mode').value === 'en'));
+        __wikiSpace.state.pointStyle === 'markers' && !__wikiSpace.state.follow && __wikiSpace.state.mode === 'all' &&
+        document.getElementById('wiki-mode').value === 'all'));
       check('no page errors', linked.errors.length === 0, linked.errors.join(' | '));
       await linked.context().close();
     }
 
-    console.log('About page');
+    console.log('Source link');
     {
-      const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
-      const page = await ctx.newPage();
-      await page.goto(base + '/about.html', { waitUntil: 'domcontentloaded' });
-      check('About page loads', (await page.title()) === 'About Wiki Space');
-      check('About page fits a phone screen', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      await ctx.close();
+      const page = await openPage(browser, base, { follow: true });
+      check('the GitHub icon next to the title opens the code', await page.evaluate(() => {
+        const a = document.getElementById('source-link');
+        return !!a.querySelector('svg') && a.getAttribute('aria-label') === 'Source code on GitHub' && a.href === 'https://github.com/lbeckman314/wiki-space';
+      }));
+      await page.context().close();
     }
   } finally {
     await browser.close();

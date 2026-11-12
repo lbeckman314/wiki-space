@@ -1,12 +1,12 @@
 # Wiki Space
 
-Live, non-bot edits to Wikipedia articles, shown on a 3D globe as they happen. Edits to astronomy articles (stars, galaxies, planets, asteroids) appear on a separate sky map.
+Live, non-bot edits to Wikipedia articles, shown on a 3D globe as they happen. Edits to astronomy articles (stars, galaxies, planets, asteroids) appear on a separate sky map. Everything runs in your browser; there's no server. Inspired by Hatnote's [Listen to Wikipedia](https://listen.hatnote.com/).
 
 ![Wiki Space: live English Wikipedia edits as bars on the globe, the sky map, and the list of recent edits](screenshot.png)
 
 ## Run it
 
-It's a static site with no build step. Get the code, then serve the folder with any web server (opening `index.html` directly as a file won't work, because browsers only load JavaScript modules from a server):
+It's a static site with no build step. Serve the folder with any web server (opening `index.html` as a file won't work, because browsers only load JavaScript modules from a server):
 
 ```bash
 git clone https://github.com/lbeckman314/wiki-space.git
@@ -16,118 +16,92 @@ git clone https://github.com/lbeckman314/wiki-space.git
 cd wiki-space && python3 -m http.server 8000
 ```
 
-Then open http://localhost:8000.
+Then open http://localhost:8000. To publish it, copy the folder to any static host; GitHub Pages serves it straight from the `main` branch.
 
-Astronomy edits are rare, so to see the sky map straight away you can simulate edits to chosen articles. This only reads Wikipedia and Wikidata; nothing is written:
+Astronomy edits are rare. To see the sky map straight away, simulate edits to chosen articles (this only reads from Wikipedia and Wikidata):
 
 ```
-http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Ceres (dwarf planet)|Mars|Halley's Comet
+http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Mars
 ```
 
-You can also run `__wikiSpace.simulate('Orion Nebula')` in the browser console. Pass a location to skip the lookup entirely, which is handy for testing without any network requests:
+In the browser console, `__wikiSpace.simulate(title, lang, at)` does the same. Pass a place to skip the lookup:
 
 ```js
 __wikiSpace.simulate('Test edit', 'en', { lat: 48.86, lng: 2.29 })
 __wikiSpace.simulate('Test star', 'en', { sky: true, ra: 88.79, dec: 7.41 })
 ```
 
-## Controls
+## Reading the globe
 
+- **Teal**: content added. **Orange-red**: content removed. **Purple**: a new article. (Chosen to stay distinguishable with red-green colour blindness.)
+- Each edit ripples where it lands and shows its title for a few seconds. It stays on the globe for 10 minutes, fading as it ages.
+- **Exact** places (the article's own coordinates) are solid; **approximate** ones (a related place, such as a person's birthplace or a country) are fainter.
+- **✦ Sky**: astronomy articles go on the sky map instead (top right), at their position among the stars.
+
+## Using it
+
+- **Bars / Markers** (top of the legend): bars show additions (teal, left) and removals (orange-red, right) for each group of nearby edits; markers show one numbered disc per group. Groups split apart as you zoom in.
+- **Follow** (on by default): turn each globe to its newest edit, at most every 1.5 seconds.
 - **Approximate**: show or hide edits placed through a related place on Wikidata.
-- **Sound**: play a note for each edit.
-- **Points**: draw edits as numbered markers (clusters with counts), as **bars** (two columns per cluster: teal for additions and new articles on the left, orange-red for removals on the right; height by number of edits or, with **Bar height**, bytes changed on a log scale), or as a thin heatmap. Bars read best near the edge of the globe, where you see them from the side. In heatmap mode, click the Earth to open the newest edit near that spot. The heatmap is refreshed at most every 8 seconds and is drawn from cluster totals, so it stays affordable in browsers without WebGPU, where three-globe computes it on the CPU. The choice is kept in the address (`?points=markers`).
-- **Follow**: turn each globe to its newest edit, at most once every 1.5 seconds (when edits arrive faster, it catches up with the latest one). Rotation pauses while Follow is on, and the camera stays put while a detail card is open.
-- **Pause stream**: disconnect from the live stream. Resuming catches up on what was missed, up to 15 minutes, and adds those edits quietly instead of rippling them all at once.
-- **Pause rotation** buttons: one at the bottom of the Earth view and one in the sky map's header, so each globe can be stopped separately.
-- **Placed / Unplaced** tabs: placed edits, and edits that couldn't be placed, with the reason (no coordinates or related place, or a location on the surface of another body).
-- **Search** (top of the sidebar): finds edits recorded this session by title, place, language or editor, ignoring accents and letter case. It covers everything recorded, not just the rows on screen, and combines with the tabs and the **All / Exact / Approximate / Sky** filters. Esc clears it.
-- **Stats** at the top right: click placed, exact, approximate or in the sky to list those edits in the sidebar.
-- **Chevrons** in the corner of the sidebar and sky map show or hide each panel; the choice is kept in the address (`?sidebar=0`, `?sky=1`). A hidden sky map stops drawing. Opening an edit's card shows the sidebar again.
-- **Resize the sidebar** by dragging its left edge (on phones, the grip on its top edge). With the edge focused, the arrow keys resize it too (Shift for bigger steps); double-click or Home goes back to the default size.
-- **About** (`about.html`): how it works, how it was built, how to run and deploy it, and credits.
-- Click a marker, a floating title or an entry in a list to open the detail card. When the edit is part of a cluster, the card shows a small chart of additions (up) and removals (down) there over the last 10 minutes, in 30-second steps; hover it for exact counts.
-- The bars and the card chart use teal and orange-red rather than green and red, so they stay distinguishable with red-green colour blindness (checked with a colour-vision validator against the page background). Position (left/right, up/down) tells them apart too.
+- **Wikis**: English Wikipedia (default), the 20 biggest languages, or all Wikipedias.
+- **Click** a bar, marker, floating title or list entry to open its card: the article summary, the change, the editor and a link to the diff. For a group, the card also shows a chart of the last 10 minutes and the other edits in it. You don't need to hit a bar exactly: the nearest one within about 22 pixels (38 for a finger) lights up and opens.
+- **Search** and the **All / Exact / Approximate / Sky** filters cover every edit recorded this session. The **Unplaced** tab lists edits that couldn't be placed, with the reason.
+- **Chevrons** hide and show the sidebar and sky map. Drag the sidebar's edge to resize it (or focus it and use the arrow keys; double-click resets it).
+- **GitHub icon** (next to the title): this repository.
+- **Status line** (under the title): click it for the edit feed, the lookup pace, rate limits and each server.
+- The globes turn slowly, and hold still while the mouse is over them. With the system's reduce-motion setting on, they don't turn, ripples are skipped and camera moves jump.
 
-### Markers
+Settings live in the address, so a link opens exactly what you see: `?sidebar=0`, `?sky=1`, `?follow=0`, `?points=markers`, `?wikis=top` or `?wikis=all`. A plain address opens the defaults.
 
-Edits close together are merged into one marker showing a count. "Close" is a grid cell whose size follows the zoom, so clusters split apart as you zoom in. Markers keep a constant size on screen, grow with the number of edits they hold, and are coloured by their newest edit. Exact and approximate edits are never merged together. Approximate edits sit exactly on their place, so, for example, all edits placed at "United States" form one marker. Clicking a marker opens its newest edit, and the card lists the other edits in it.
-
-## How it works
+## How edits are placed
 
 ```
-EventStreams (SSE) ─► filter: article namespace, edit/new, not a bot, *.wikipedia.org
+EventStreams ─► keep: article edits and new articles, not bots, on the chosen Wikipedias
         │
         ▼
-geo.js  resolveLocation(server, title)
-  1. Wiki API, batched up to 50 titles:  prop=coordinates|pageprops
-       └─ article has coordinates        → exact
-  2. Wikidata, batched up to 50 ids:      wbgetentities (claims)
-       ├─ P625 coordinate location        → exact
-       ├─ sky (see below)                 → sky map
-       └─ first place found along the chain, then that place's P625:
-            P276 location · P131 admin area · P159 HQ · P740 formed in   → "place"
-            P19 born in · P20 died in                                     → "person"
-            P17 country · P495 country of origin · P27 citizenship        → "country"
-        │
-        ▼
-sky   Sun, Moon and planets          → astronomy-engine, position today
-      P6257 RA + P6258 Dec              → exact (stars, galaxies, nebulae, exoplanets)
-      orbital elements P2233 a, P1096 e, P2045 i, P2213 Ω, P2248 ω, P2325 M, epoch P6259
-                                        → Kepler's equation → RA/Dec as seen from Earth today
-      P59 constellation only            → approximate, at the constellation's centre
-        │
-        ▼
-app/    globe.gl: ripples (size = edit size), markers / bars / heatmap that fade over 10 minutes,
-        floating titles, the sidebar list, a detail card (REST summary + diff link)
-sound.js  optional Web Audio: larger edits play lower notes, panned by longitude
+geo.js  1. Wikipedia API (50 titles per request): the article's coordinates      → exact
+        2. Wikidata (50 items per request):
+             P625 coordinates                                                    → exact
+             sky position (below)                                                → sky map
+             first related place with coordinates:
+               P276 location, P131 area, P159 HQ, P740 formed in                 → approximate
+               P19 born in, P20 died in, P17 country, P495 origin, P27 citizen  → approximate
+        3. nothing found                                                         → Unplaced
+sky     Sun, Moon and planets: today's position (astronomy-engine)
+        P6257 / P6258 right ascension and declination: stars, galaxies, nebulae
+        orbital elements: today's position for asteroids and comets
+        P59 constellation only: its centre (approximate)
 ```
 
-- **Exact** locations are drawn as solid markers with sharp ripples. **Approximate** ones are faint markers with wide, slow ripples.
-- On the sky map, longitude is −RA and latitude is Dec. RA is negated so constellations read like a sky chart rather than a mirror image. The orbit calculation ignores perturbations and light-time; for Mars it agrees with astronomy-engine to within about 0.03°.
-- Surface features on other bodies, such as lunar craters, are counted and skipped. A body that has a sky position (the Moon, Mars) is shown on the sky map.
-- The starry background behind the Earth is painted from the same star catalogue as the sky map (stars to magnitude 6, coloured by B−V colour index, with faint constellation lines). It isn't rotated to match the real sky above each point on Earth.
-- Every lookup is cached, and places such as cities and countries are cached permanently, so request volume drops as the cache fills.
-- The site sends at most 3 requests at a time. On HTTP 429, or a network error (a rate-limit reply without CORS headers looks like one to the browser), every request pauses for the server's `Retry-After` time or an exponential backoff, and the status line shows that lookups are being rate-limited.
-
-## Motion, background tabs and colours
-
-- With the system's **reduce motion** setting on, the globes start without rotation (the pause/play buttons still work), ripples are skipped and camera moves jump instead of gliding.
-- In a **background tab** the page keeps recording edits (and playing sound, if on) but skips ripples, titles and camera moves, so nothing piles up for when you return.
-- **Colours**: additions are teal, removals orange-red and new articles purple. The set was checked with a colour-vision validator against the page background, so it stays distinguishable with red-green colour blindness.
-
-## Tests
-
-Browser tests live in `tests/run.js`. They use simulated edits at fixed locations, so they make no Wikipedia or Wikidata lookups (the page still loads its libraries from jsDelivr):
-
-```bash
-npm install
-npx playwright install chromium
-npm test
-```
+Every answer is cached. Lookups go out through one queue, at most one request every 2 seconds (every 10 seconds in a background tab), because Wikimedia's limit (about 80 a minute) is shared by everything on your IP address. When Wikimedia asks the page to wait (HTTP 429), all lookups pause and the status line says so.
 
 ## Files
 
-| File | Purpose |
+| File | What it does |
 |---|---|
-| `index.html` | Page layout; loads globe.gl 2.45.3 from jsDelivr |
-| `style.css` | Styles, including the mobile layout (bottom panel under 760px wide) |
-| `geo.js` | Location resolver: batching, caching, Wikidata fallback chain, rate limiting |
-| `app/main.js` | Start-up: wires the controls, runs the update loops, connects to the stream |
-| `app/core.js` | Shared constants, helpers and state (`state`, `flags`, `tl`, `view`) |
-| `app/stream.js` | Live edit stream, catch-up after a pause, placing edits, `simulate()` |
-| `app/globe.js` | The Earth globe: layers, ripples, floating titles, Follow, rotation |
-| `app/points.js` | Clustering, and the markers / bars / heatmap point styles |
-| `app/history.js` | Recorded history and the 10-minute window shown on the globe |
-| `app/sidebar.js` | Sidebar list, search and filters, stat links, show/hide panels |
-| `app/card.js` | Detail card and its additions/removals chart |
-| `sky.js` | Sky map (a second globe.gl globe) plus the astronomy helpers. Star catalogue and constellation data come from d3-celestial (BSD-3-Clause) |
-| `sound.js` | Sound |
-| `about.html` | About page |
-| `tests/run.js`, `package.json` | Browser tests (Playwright); not needed to run the site |
+| `index.html`, `style.css` | Page layout and styles (the sidebar moves under the globe below 760px wide). The import map at the bottom of `index.html` pins globe.gl and astronomy-engine on jsDelivr |
+| `app/geo.js` | Finds a place for each article: batching, caching, pacing, the Wikidata fallbacks |
+| `app/sky.js` | The sky map, star and constellation data, and astronomy helpers |
+| `app/main.js` | Start-up: controls, update loops, connecting to the feed |
+| `app/core.js` | Constants, helpers, settings (`DEFAULTS`) and shared state |
+| `app/stream.js` | The live feed, turning edits into items, `simulate()` |
+| `app/history.js` | Every placed edit this session, and the 10 minutes shown on the Earth |
+| `app/globe.js` | The Earth: layers, ripples, floating titles, Follow, rotation |
+| `app/points.js` | Grouping nearby edits, bars and markers, and aiming help |
+| `app/sidebar.js` | The list, search and filters, showing/hiding and resizing panels |
+| `app/card.js` | The detail card and its chart |
+| `app/apipanel.js` | The panel that opens from the status line |
+| `tests/run.js` | Browser tests (Playwright): `npm install` and `npx playwright install chromium` once, then `npm test` |
 
-## Ideas for next steps
+## Credits and data
 
-- Let users toggle each fallback tier on or off, or show tiers in different colours.
-- Run a small relay (Cloudflare Worker or Node) that reads the stream once, resolves locations server-side and pushes them to clients. That keeps request volume to Wikimedia flat however many people are watching.
-- Add an "edits per region in the last hour" heat layer (globe.gl `hexBinPointsData`).
-- Rotate the camera toward large edits automatically.
+| What | Source | License |
+|---|---|---|
+| Live edits | [Wikimedia EventStreams](https://wikitech.wikimedia.org/wiki/Event_Platform/EventStreams) | Wikimedia terms of use |
+| Article coordinates and summaries | Wikipedia (MediaWiki and REST APIs) | Text: CC BY-SA 4.0 |
+| Places, sky coordinates and orbits | [Wikidata](https://www.wikidata.org/) | CC0 |
+| 3D globes | [globe.gl](https://github.com/vasturiano/globe.gl), built on three.js | MIT |
+| Earth images | three-globe example images, based on NASA imagery | See three-globe |
+| Stars and constellations | [d3-celestial](https://github.com/ofrohn/d3-celestial) data | BSD-3-Clause |
+| Planet positions | [Astronomy Engine](https://github.com/cosinekitty/astronomy) | MIT |
+| Inspiration | [Listen to Wikipedia](https://listen.hatnote.com/) by Hatnote | – |
