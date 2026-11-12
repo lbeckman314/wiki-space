@@ -1,4 +1,4 @@
-# Wiki Space
+# Wiki Space 💫
 
 Live (non-bot) edits to Wikipedia articles, shown on a 3D globe as they happen!
 
