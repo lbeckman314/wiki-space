@@ -23,12 +23,6 @@ python3 -m http.server 8000
 > [!TIP]
 >
 > Edits to astronomy articles (stars, galaxies, planets, asteroids) appear on a separate sky map.
->
-> Astronomy edits are rare. To see the sky map straight away, simulate edits to chosen articles (this only reads from Wikipedia and Wikidata):
->
-> ```
-> http://localhost:8000/?simulate=Andromeda Galaxy|Betelgeuse|Mars
-> ```
 
 ## Credits and data
 
