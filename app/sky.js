@@ -284,13 +284,14 @@ function followTo(item) {
     return;
   }
   lastFollow = Date.now();
+  if (!followed) { followed = true; applyRotation(); }
   sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: sky.pointOfView().altitude }, glide(1000));
 }
-// Rotation pauses while following, while an edit is open, and while the mouse is over the sphere or a
+// Rotation pauses while following (once there's an edit to follow), while an edit is open, and while the mouse is over the sphere or a
 // marker (main.js wires that up with watchHover() from globe.js).
-let hovering = false;
+let hovering = false, followed = false;
 function setHovering(on) { hovering = on; applyRotation(); }
-function applyRotation() { sky.controls().autoRotate = rotate && !follow && !selected && !hovering; }
+function applyRotation() { sky.controls().autoRotate = rotate && !(follow && followed) && !selected && !hovering; }
 function setFollow(on) {
   follow = on;
   applyRotation();

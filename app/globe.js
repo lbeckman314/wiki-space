@@ -54,7 +54,7 @@ export const world = new Globe(wrap, { animateIn: true })
 
 export function initGlobe() {
   WikiSky.starfield.then(url => world.backgroundImageUrl(url)); // the sky map's stars, behind the Earth
-  world.controls().autoRotateSpeed = 0.35;
+  world.controls().autoRotateSpeed = -0.65;
   world.pointOfView({ lat: 40, lng: -100, altitude: 1.8 });
   applyRotation();
   // Hold still while the mouse is over the Earth (or a bar, marker or title), so things are easy to click.
@@ -65,8 +65,11 @@ export function initGlobe() {
   resize();
 }
 
+// Follow stops the rotation, but only once it has an edit to turn to, so the Earth turns while the
+// page waits for the first one.
+let followed = false;
 export function applyRotation() {
-  world.controls().autoRotate = state.rotate && !state.follow && !state.selected && !state.hovering;
+  world.controls().autoRotate = state.rotate && !(state.follow && followed) && !state.selected && !state.hovering;
 }
 
 // A new edit on the Earth: ripple, floating title and Follow. Skipped while the tab is hidden, or they'd
@@ -118,6 +121,7 @@ export function followTo(item, now = false) {
     return;
   }
   lastFollow = Date.now();
+  if (!followed) { followed = true; applyRotation(); }
   world.pointOfView({ lat: item.lat, lng: item.lng, altitude: world.pointOfView().altitude }, glide(1000));
 }
 
