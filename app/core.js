@@ -83,6 +83,7 @@ export const state = {
   showApprox: true,             // the Approximate checkbox
   rotate: !motion.reduce,       // the Earth turns by itself
   hovering: false,              // the mouse is over the Earth, so it holds still
+  dragging: false,              // a mouse or finger is turning the Earth
   pointHover: null,             // the bar or marker right under the mouse (globe.gl's own hit test)
   near: null,                   // the bar or marker the mouse is aiming at (points.js)
   selected: null,               // the edit open in the card

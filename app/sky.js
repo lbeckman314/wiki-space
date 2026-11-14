@@ -185,6 +185,8 @@ export function initSky() {
   sky.controls().autoRotateSpeed = 0.25;
   sky.controls().enableZoom = true;
   sky.pointOfView({ lat: 20, lng: 0, altitude: 2.3 });
+  sky.controls().addEventListener('start', () => { dragging = true; });
+  sky.controls().addEventListener('end', () => { dragging = false; });
 
   const resize = () => sky.width(el.clientWidth).height(el.clientHeight);
   new ResizeObserver(resize).observe(el);
@@ -271,16 +273,18 @@ function add(item, { quiet = false } = {}) {
     ripple(item);
   }
   refresh();
-  if (!quiet && follow && !selected) followTo(item);
+  if (!quiet && follow) followTo(item);
 }
 
 // Follow: centre on the newest edit (at most every 1.5 s, so bursts don't jerk the camera around).
+// Holds still while an edit is open and while the mouse is over the sky map or dragging it.
 let followTimer = null, followNext = null;
 function followTo(item) {
+  if (selected || hovering || dragging) return;
   followNext = item;
   const wait = lastFollow + 1500 - Date.now();
   if (wait > 0) {
-    if (!followTimer) followTimer = setTimeout(() => { followTimer = null; if (follow && !selected) followTo(followNext); }, wait);
+    if (!followTimer) followTimer = setTimeout(() => { followTimer = null; if (follow) followTo(followNext); }, wait);
     return;
   }
   lastFollow = Date.now();
@@ -289,13 +293,13 @@ function followTo(item) {
 }
 // Rotation pauses while following (once there's an edit to follow), while an edit is open, and while the mouse is over the sphere or a
 // marker (main.js wires that up with watchHover() from globe.js).
-let hovering = false, followed = false;
+let hovering = false, dragging = false, followed = false;
 function setHovering(on) { hovering = on; applyRotation(); }
 function applyRotation() { sky.controls().autoRotate = rotate && !(follow && followed) && !selected && !hovering; }
 function setFollow(on) {
   follow = on;
   applyRotation();
-  if (on && !selected && items.length) { lastFollow = 0; followTo(items[items.length - 1]); }
+  if (on && items.length) { lastFollow = 0; followTo(items[items.length - 1]); }
 }
 function setRotate(on) { rotate = on; applyRotation(); }
 

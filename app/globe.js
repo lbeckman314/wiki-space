@@ -22,7 +22,8 @@ function pointColor(d) {
 }
 
 export const wrap = $('globe');
-export const world = new Globe(wrap, { animateIn: true })
+// The intro (grow in, one turn backwards) is skipped with reduced motion.
+export const world = new Globe(wrap, { animateIn: !motion.reduce })
   .globeImageUrl(TEX + 'earth-night.jpg')
   .bumpImageUrl(TEX + 'earth-topology.png')
   .showAtmosphere(true).atmosphereColor('#5b8cff').atmosphereAltitude(0.17)
@@ -59,6 +60,9 @@ export function initGlobe() {
   applyRotation();
   // Hold still while the mouse is over the Earth (or a bar, marker or title), so things are easy to click.
   watchHover(wrap, world, '.glabel', on => { state.hovering = on; applyRotation(); }, d => { state.pointHover = d || null; });
+  // Dragging pauses Follow too (touch screens have no hover).
+  world.controls().addEventListener('start', () => { state.dragging = true; });
+  world.controls().addEventListener('end', () => { state.dragging = false; });
 
   const resize = () => world.width(wrap.clientWidth).height(wrap.clientHeight);
   new ResizeObserver(resize).observe(wrap);
@@ -86,7 +90,7 @@ export function announce(item) {
     });
   }
   flags.dirty = true;
-  if (state.follow && !state.selected) followTo(item);
+  if (state.follow) followTo(item);
   addTitle(item, exact);
 }
 
@@ -107,16 +111,18 @@ function addTitle(item, exact) {
 }
 
 // Follow: turn the Earth to the newest edit, at most every 1.5 s. When edits come faster, the camera
-// catches up with the latest one once the wait is over.
+// catches up with the latest one once the wait is over. It holds still while an edit is open and while
+// the mouse is over the Earth or dragging it; the next edit after that turns it again.
 let lastFollow = 0, followTimer = null, followNext = null;
 export function followTo(item, now = false) {
+  if (state.selected || state.hovering || state.dragging) return;
   if (now) lastFollow = 0;
   followNext = item;
   const wait = lastFollow + 1500 - Date.now();
   if (wait > 0) {
     followTimer ??= setTimeout(() => {
       followTimer = null;
-      if (state.follow && !state.selected) followTo(followNext);
+      if (state.follow) followTo(followNext);
     }, wait);
     return;
   }
