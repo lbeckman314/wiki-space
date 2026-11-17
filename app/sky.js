@@ -185,8 +185,8 @@ export function initSky() {
   sky.controls().autoRotateSpeed = 0.25;
   sky.controls().enableZoom = true;
   sky.pointOfView({ lat: 20, lng: 0, altitude: 2.3 });
-  sky.controls().addEventListener('start', () => { dragging = true; });
-  sky.controls().addEventListener('end', () => { dragging = false; });
+  sky.controls().addEventListener('start', () => { dragging = true; applyRotation(); });
+  sky.controls().addEventListener('end', () => { dragging = false; applyRotation(); });
 
   const resize = () => sky.width(el.clientWidth).height(el.clientHeight);
   new ResizeObserver(resize).observe(el);
@@ -292,10 +292,14 @@ function followTo(item) {
   sky.pointOfView({ lat: item.lat, lng: item.lng, altitude: sky.pointOfView().altitude }, glide(1000));
 }
 // Rotation pauses while following (once there's an edit to follow), while an edit is open, and while the mouse is over the sphere or a
-// marker (main.js wires that up with watchHover() from globe.js).
+// marker (main.js wires that up with watchHover() from globe.js). After a pause it turns again until
+// the next edit, as on the Earth.
 let hovering = false, dragging = false, followed = false;
 function setHovering(on) { hovering = on; applyRotation(); }
-function applyRotation() { sky.controls().autoRotate = rotate && !(follow && followed) && !selected && !hovering; }
+function applyRotation() {
+  if (selected || hovering || dragging) followed = false;
+  sky.controls().autoRotate = rotate && !(follow && followed) && !selected && !hovering;
+}
 function setFollow(on) {
   follow = on;
   applyRotation();

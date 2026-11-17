@@ -61,18 +61,54 @@ export function initGlobe() {
   // Hold still while the mouse is over the Earth (or a bar, marker or title), so things are easy to click.
   watchHover(wrap, world, '.glabel', on => { state.hovering = on; applyRotation(); }, d => { state.pointHover = d || null; });
   // Dragging pauses Follow too (touch screens have no hover).
-  world.controls().addEventListener('start', () => { state.dragging = true; });
-  world.controls().addEventListener('end', () => { state.dragging = false; });
+  world.controls().addEventListener('start', () => { state.dragging = true; applyRotation(); });
+  world.controls().addEventListener('end', () => { state.dragging = false; applyRotation(); });
 
   const resize = () => world.width(wrap.clientWidth).height(wrap.clientHeight);
   new ResizeObserver(resize).observe(wrap);
   resize();
 }
 
+// A hint at the bottom of the Earth that the globes can be moved, for people who don't guess it. It
+// shows shortly after the page opens and goes at the first press or scroll on either globe, or after
+// 20 s. With no browser storage it shows on every visit, so it stays small and goes quickly.
+export function initHint() {
+  const hint = $('globe-hint');
+  const touch = matchMedia('(pointer: coarse)').matches;
+  $('hint-text').textContent = touch
+    ? 'Drag to turn the globe, pinch to zoom, and tap an edit to see it!'
+    : 'Drag to turn the globe, scroll to zoom, and click an edit to see it!';
+  const targets = [wrap, $('sky')];
+  let done = false, timer = null;
+  const hide = () => {
+    done = true;
+    clearTimeout(timer);
+    hint.classList.remove('shown');
+    for (const el of targets) {
+      el.removeEventListener('pointerdown', hide);
+      el.removeEventListener('wheel', hide);
+    }
+  };
+  for (const el of targets) {
+    el.addEventListener('pointerdown', hide);
+    el.addEventListener('wheel', hide, { passive: true });
+  }
+  // Wait for the Earth to appear, and for the tab to be seen (it may have opened in the background).
+  const show = () => {
+    if (done) return;
+    if (document.hidden) return document.addEventListener('visibilitychange', show, { once: true });
+    hint.classList.add('shown');
+    timer = setTimeout(hide, 20000);
+  };
+  setTimeout(show, 1500);
+}
+
 // Follow stops the rotation, but only once it has an edit to turn to, so the Earth turns while the
-// page waits for the first one.
+// page waits for the first one. A pause (see followPaused) starts that wait over: afterwards the Earth
+// turns again until the next edit.
 let followed = false;
 export function applyRotation() {
+  if (followPaused()) followed = false;
   world.controls().autoRotate = state.rotate && !(state.follow && followed) && !state.selected && !state.hovering;
 }
 
@@ -114,8 +150,9 @@ function addTitle(item, exact) {
 // catches up with the latest one once the wait is over. It holds still while an edit is open and while
 // the mouse is over the Earth or dragging it; the next edit after that turns it again.
 let lastFollow = 0, followTimer = null, followNext = null;
+function followPaused() { return state.selected || state.hovering || state.dragging; }
 export function followTo(item, now = false) {
-  if (state.selected || state.hovering || state.dragging) return;
+  if (followPaused()) return;
   if (now) lastFollow = 0;
   followNext = item;
   const wait = lastFollow + 1500 - Date.now();

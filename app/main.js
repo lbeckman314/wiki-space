@@ -1,7 +1,7 @@
 // Start-up: wires the controls, runs the update loops and connects to the live stream.
 // The other modules only declare things when they load; everything that touches the page starts here.
 import { $, RING_LIFE, LABEL_LIFE, motionQuery, motion, state, flags, view, DEFAULTS, urlParam, setUrlParam } from './core.js';
-import { world, initGlobe, applyRotation, followTo, watchHover } from './globe.js';
+import { world, initGlobe, initHint, applyRotation, followTo, watchHover } from './globe.js';
 import { initPoints, buildGroups, setPointStyle, zoomChanged } from './points.js';
 import { computeWindow } from './history.js';
 import { connect, disconnect, isConnected, setStatus, simulate } from './stream.js';
@@ -13,6 +13,7 @@ import { WikiGeo } from './geo.js';
 
 initSky();
 initGlobe();
+initHint();
 initPoints();
 initSidebar();
 initCard();

@@ -18,6 +18,7 @@
   --add: #14a6a0;
   --remove: #e2603f;
   --new: #9a6cf0;
+  --tip: #3fb950; /* GitHub's "Tip" note colour, for #globe-hint */
   color-scheme: dark;
 }
 
@@ -101,10 +102,10 @@ a:hover {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* Icons are Tabler icons (MIT), drawn with strokes. */
 .icon-btn .ico {
   width: 11px;
   height: 11px;
-  fill: currentColor;
   flex: none;
 }
 
@@ -128,6 +129,7 @@ a:hover {
   position: relative;
   flex: 1;
   min-width: 0;
+  container: globe / inline-size; /* for #globe-hint */
 }
 
 /* Its own stacking context, so the globe's title layer never paints over the boxes on top of it. */
@@ -680,9 +682,75 @@ body.points-bars .lg-bars {
   display: none;
 }
 
+/* Both globes can be dragged. */
+#globe canvas,
+#sky canvas {
+  cursor: grab;
+}
+
+#globe canvas:active,
+#sky canvas:active {
+  cursor: grabbing;
+}
+
 #globe.aiming,
 #globe.aiming canvas {
   cursor: pointer;
+}
+
+/* The hint that the globes can be moved (app/globe.js): bottom centre, for the first few seconds. */
+#globe-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 2;
+  width: max-content;
+  max-width: min(300px, calc(100% - 32px));
+  padding: 8px 14px 9px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--overlay);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--tip);
+  border-radius: 6px;
+  backdrop-filter: blur(6px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.4s, visibility 0.4s;
+}
+
+#globe-hint.shown {
+  opacity: 1;
+  visibility: visible;
+}
+
+#globe-hint p {
+  margin: 0;
+}
+
+#globe-hint .hint-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 3px;
+  font-weight: 600;
+  color: var(--tip);
+}
+
+#globe-hint svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+/* Where it would meet the legend, it sits above it instead (the phone layout below has its own place). */
+@container globe (max-width: 900px) {
+  #globe-hint {
+    bottom: 236px;
+  }
 }
 
 /* ---------------- sidebar ---------------- */
@@ -1268,6 +1336,18 @@ body.hide-sky #sky-empty {
     padding: 6px;
   }
 
+  /* To the right of the legend's Markers / Bars buttons (10px + their width + a gap), bottoms lined up */
+  #globe-hint {
+    left: 144px;
+    right: 10px;
+    bottom: 10px;
+    width: auto;
+    max-width: none;
+    padding: 6px 10px 7px 9px;
+    font-size: 12px;
+    transform: none;
+  }
+
   #legend .lg-row,
   #legend .lg-sep {
     display: none !important;
@@ -1299,6 +1379,7 @@ body.booting * {
   .skym,
   .skym span,
   #sky-wrap,
+  #globe-hint,
   .toggle .chev {
     transition: none;
   }
