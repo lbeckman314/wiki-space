@@ -698,10 +698,11 @@ body.points-bars .lg-bars {
   cursor: pointer;
 }
 
-/* The hint that the globes can be moved (app/globe.js): bottom centre, for the first few seconds. */
+/* The hint that the globes can be moved (app/globe.js), for the first few seconds. Bottom right, across
+   from the legend. */
 #globe-hint {
   position: absolute;
-  left: 50%;
+  right: 16px;
   bottom: 16px;
   z-index: 2;
   width: max-content;
@@ -715,7 +716,6 @@ body.points-bars .lg-bars {
   border-left: 4px solid var(--tip);
   border-radius: 6px;
   backdrop-filter: blur(6px);
-  transform: translateX(-50%);
   pointer-events: none;
   opacity: 0;
   visibility: hidden;
@@ -747,7 +747,7 @@ body.points-bars .lg-bars {
 }
 
 /* Where it would meet the legend, it sits above it instead (the phone layout below has its own place). */
-@container globe (max-width: 900px) {
+@container globe (max-width: 620px) {
   #globe-hint {
     bottom: 236px;
   }
@@ -1345,7 +1345,6 @@ body.hide-sky #sky-empty {
     max-width: none;
     padding: 6px 10px 7px 9px;
     font-size: 12px;
-    transform: none;
   }
 
   #legend .lg-row,
